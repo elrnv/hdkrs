@@ -1,0 +1,21 @@
+[package]
+name = "hdkrs"
+version = "0.1.0"
+authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+edition = "2018"
+
+#[lib]
+#name = "hdkrs"
+#crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+gut = { version = "0.6", features = ["io", "serde_all"] }
+bytemuck = "1.5"
+hashbrown = "0.9"
+cxx = "1.0"
+libc = "0.2"
+
+[build-dependencies]
+cbindgen = "0.16"
+glob = "0.3"
+cxx-build = "1.0"

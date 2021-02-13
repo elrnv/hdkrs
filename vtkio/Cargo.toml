@@ -1,0 +1,15 @@
+[package]
+name = "vtkio-hdk"
+version = "0.1.0"
+authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "vtkiohdk"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+hdkrs = { path = "../hdkrs" }
+
+[build-dependencies]
+cbindgen = "0.14.2"
