@@ -10,7 +10,7 @@
 #include <boost/variant.hpp>
 #include <hdkrs/io.h>
 #include <hdkrs/mesh.h>
-#include <hdkrs/hdkrs.h>
+#include <hdkrs.h>
 #include <iostream>
 
 #include "add_mesh_visitor.h"

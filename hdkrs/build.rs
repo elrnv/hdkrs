@@ -10,9 +10,9 @@ fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let target_dir = target_dir(&package_name);
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    let output_file = target_dir
+    let output_file = out_dir
         .join(format!("{}.h", package_name))
         .display()
         .to_string();
@@ -32,18 +32,30 @@ fn main() {
     cxx_build::bridge("src/lib.rs")
         .file("src/hdkrs.C")
         .flag_if_supported("-std=c++14")
-        .compile("cxxbridge-hdkrs");
+        .compile("hdkrs");
 
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=src/hdkrs.C");
+    println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=include/hdkrs.h");
+    println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
+
+    let header_target = out_dir.join("hdkrs");
+    if !header_target.exists() {
+        fs::create_dir(&header_target).unwrap_or_else(|_| {
+            panic!(
+                "Failed to create target directory for header files: {:?}",
+                header_target
+            )
+        });
+    }
 
     // Copy HDK API C headers from source to target directory
     for entry in glob(&format!("{}/src/*.h", crate_dir)).expect("Failed to find headers.") {
         match entry {
             Ok(src) => {
                 let header = src.file_name().unwrap();
-                let dst = target_dir.join(Path::new(&header));
+                let dst = header_target.join(Path::new(&header));
                 println!("copying {:?} to {:?}", src, dst);
                 fs::copy(&src, &dst)
                     .unwrap_or_else(|_| panic!("Failed to copy header {:?}", header));
@@ -54,8 +66,8 @@ fn main() {
 
     // Copy CMake config file so it can be used by other plugins
 
-    let cmake_target = target_dir.parent().unwrap().join("cmake");
-    if !cmake_target.is_dir() {
+    let cmake_target = out_dir.join("cmake");
+    if !cmake_target.exists() {
         fs::create_dir(&cmake_target).unwrap_or_else(|_| {
             panic!(
                 "Failed to create target directory for cmake config files: {:?}",
@@ -70,20 +82,4 @@ fn main() {
     println!("copying {:?} to {:?}", src, dst);
     fs::copy(&src, &dst)
         .unwrap_or_else(|_| panic!("Failed to copy cmake config {:?}", cmake_config_file));
-}
-
-fn target_dir(package_name: &str) -> PathBuf {
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let mut target_dir = out_dir.as_path();
-    for _ in 0..3 {
-        assert!(target_dir.is_dir());
-        target_dir = target_dir.parent().unwrap();
-    }
-    let target_dir = target_dir.join(package_name.to_string());
-    if !target_dir.is_dir() {
-        fs::create_dir(&target_dir)
-            .unwrap_or_else(|_| panic!("Failed to create target directory: {:?}", target_dir));
-    }
-
-    target_dir
 }

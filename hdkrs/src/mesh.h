@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hdkrs/hdkrs.h>
+#include <hdkrs.h>
 #include <hdkrs/pointer.h>
 
 class GU_Detail;

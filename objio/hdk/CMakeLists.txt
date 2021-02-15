@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.6 )
 
-project( Objio )
+project( objio )
 
 # Setup compile flags
 if(NOT CMAKE_BUILD_TYPE)
@@ -18,21 +18,20 @@ endif()
 # specifying this path.
 list( APPEND CMAKE_PREFIX_PATH "$ENV{HFS}/toolkit/cmake" )
 
-# Add path for shared cmake modules like hdkrs
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    list( APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/../../target/debug/cmake/")
-else()
-    list( APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/../../target/release/cmake/")
-endif()
+# Find build directories of Rust crates that can be linked against.
+file(READ "${CMAKE_BINARY_DIR}/rust/out_dir_hdkrs.txt" HDKRS_OUT_DIR)
 
-# Set the directory of the library to be found by find_package
-set( Objio_DIR ${CMAKE_SOURCE_DIR} )
+# Add path for shared CMake modules build as Rust crates.
+list( APPEND CMAKE_PREFIX_PATH "${HDKRS_OUT_DIR}/cmake" )
+
+# Set the directory containing the CMake config file.
+set( objio_DIR ${CMAKE_SOURCE_DIR})
 
 # Locate Houdini's libraries and header files.
 # Registers an imported library target named 'Houdini'.
 find_package( Houdini REQUIRED )
 find_package( hdkrs REQUIRED )
-find_package( Objio REQUIRED )
+find_package( objio REQUIRED )
 find_package( Boost REQUIRED )
 
 if(APPLE)
@@ -50,7 +49,7 @@ add_library( ${library_name} SHARED
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.
-target_link_libraries( ${library_name} Houdini ${Objio_LIBRARIES} ${MACOS_SECURITY}
+target_link_libraries( ${library_name} Houdini ${objio_LIBRARIES} ${HDKRS_LIBRARIES} ${MACOS_SECURITY}
     ${Boost_LIBRARIES})
 
 if(WIN32)
@@ -60,7 +59,7 @@ endif(WIN32)
 
 # Include ${CMAKE_CURRENT_BINARY_DIR} for the generated header.
 target_include_directories( ${library_name} PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR} ${Objio_INCLUDE_DIRS} ${HDKRS_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR} ${objio_INCLUDE_DIRS} ${HDKRS_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 

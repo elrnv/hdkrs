@@ -1,7 +1,7 @@
 #pragma once
 
 #include <hdkrs/mesh.h>
-#include <hdkrs/hdkrs.h>
+#include <hdkrs.h>
 #include <boost/variant.hpp>
 
 namespace hdkrs {

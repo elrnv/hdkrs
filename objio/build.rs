@@ -22,9 +22,6 @@ fn main() {
     cbindgen::generate_with_config(&crate_dir, config)
         .expect("Unable to generate bindings")
         .write_to_file(&output_file);
-
-    // Copy artifact to where CMake can find it easily.
-    fs::copy(&output_file, &cmake_target_dir().join(header_file.clone())).unwrap();
 }
 
 fn target_dir() -> PathBuf {
