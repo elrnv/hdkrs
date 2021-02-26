@@ -2,7 +2,7 @@
 
 #include <UT/UT_Interrupt.h>
 
-namespace interrupt {
+namespace hdkrs {
 
 // Interrupt checker.
 struct InterruptChecker {
