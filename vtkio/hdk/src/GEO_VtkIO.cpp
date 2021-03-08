@@ -1,18 +1,16 @@
+#include <iostream>
+
 #include <GU/GU_Detail.h>
 #include <GEO/GEO_AttributeHandle.h>
 #include <GEO/GEO_IOTranslator.h>
 #include <UT/UT_IStream.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_IOTable.h>
-#include <boost/variant.hpp>
-#include <hdkrs/io.h>
-#include <hdkrs/mesh.h>
-#include <iostream>
 
-#include "add_mesh_visitor.h"
+#include <vtkio/src/lib.rs.h>
+#include <hdkrs/prelude.h>
+
 #include "GEO_VtkIO.h"
-
-using namespace hdkrs;
 
 GEO_IOTranslator *
 GEO_VtkIO::duplicate() const
@@ -51,10 +49,8 @@ GEO_VtkIO::fileLoad(GEO_Detail *detail, UT_IStream &is, bool)
     bool success = is.getAll(buf);
     if (!success)
         return GA_Detail::IOStatus(success);
-    exint size = buf.length();
-    auto data = buf.buffer();
-    io::MeshVariant mesh = io::parse_vtk_mesh(data, size);
-    boost::apply_visitor( AddMesh(detail), std::move(mesh) );
+    rust::Slice<const uint8_t> slice(reinterpret_cast<const unsigned char*>(buf.buffer()), buf.length());
+    vtkio::add_vtk_mesh(static_cast<GU_Detail&>(*detail), slice);
     return GA_Detail::IOStatus(success);
 }
 
@@ -65,28 +61,25 @@ GEO_VtkIO::fileSave(const GEO_Detail *detail, std::ostream &os)
         return GA_Detail::IOStatus(true);
 
     // Try to save the tetmesh first
-    OwnedPtr<HR_TetMesh> tetmesh = mesh::build_tetmesh(static_cast<const GU_Detail*>(detail));
-    if (tetmesh) {
-        auto buf = io::ByteBuffer::write_vtk_mesh(std::move(tetmesh));
-        os.write(buf.data(), buf.size());
+    try {
+        auto buf = vtkio::tetmesh_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    }
+    } catch(const std::runtime_error& e) {}
 
     // If no tets are found we try to save the polymesh
-    OwnedPtr<HR_PolyMesh> polymesh = mesh::build_polymesh(static_cast<const GU_Detail*>(detail));
-    if (polymesh) {
-        auto buf = io::ByteBuffer::write_vtk_mesh(std::move(polymesh));
-        os.write(buf.data(), buf.size());
+    try {
+        auto buf = vtkio::polymesh_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    }
+    } catch(const std::runtime_error& e) { }
 
     // If no polygons are found we try to save the pointcloud
-    OwnedPtr<HR_PointCloud> pointcloud = mesh::build_pointcloud(static_cast<const GU_Detail*>(detail));
-    if (pointcloud) {
-        auto buf = io::ByteBuffer::write_vtk_mesh(std::move(pointcloud));
-        os.write(buf.data(), buf.size());
+    try {
+        auto buf = vtkio::pointcloud_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    }
+    } catch(const std::runtime_error& e) { }
 
     return GA_Detail::IOStatus(false);
 }

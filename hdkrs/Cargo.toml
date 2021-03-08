@@ -3,7 +3,7 @@ name = "hdkrs"
 version = "0.1.0"
 authors = ["Egor Larionov <egor.larionov@gmail.com>"]
 edition = "2018"
-links = "cxxbridge-hdkrs"
+links = "hdkrs"
 
 [dependencies]
 gut = { version = "0.6", features = ["io", "serde_all"] }
@@ -13,7 +13,7 @@ cxx = "1.0"
 libc = "0.2"
 
 [build-dependencies]
-cbindgen = "0.17"
+cbindgen = "0.18"
 glob = "0.3"
 cxx-build = "1.0"
-cmake = "0.1"
+cmake = { git = "https://github.com/elrnv/cmake-rs.git", version = "0.1" }

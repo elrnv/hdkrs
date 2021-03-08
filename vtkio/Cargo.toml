@@ -3,13 +3,16 @@ name = "vtkio-hdk"
 version = "0.1.0"
 authors = ["Egor Larionov <egor.larionov@gmail.com>"]
 edition = "2018"
+links = "cxxbridge-vtkiohdk"
 
 [lib]
-name = "vtkiohdk"
+name = "vtkiors"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
+gut = { version = "0.6", features = ["io", "serde_all"] }
 hdkrs = { path = "../hdkrs" }
+cxx = "1.0"
 
 [build-dependencies]
-cbindgen = "0.14.2"
+cxx-build = "1.0"

@@ -1,24 +1,17 @@
-use glob::glob;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
+use cxx_build::CFG;
+use glob::glob;
+
 fn main() {
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-
-    //let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    // Build the cxx bridge
-
-    cxx_build::bridge("src/lib.rs")
-        .flag_if_supported("-std=c++17")
-        .compile("cxxbridge-hdkrs");
-
     // Copy HDK API C headers from source to target directory
 
-    let header_target = out_dir.join("hdkrs");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let include_target = out_dir.join("include");
+    let header_target = include_target.join("hdkrs");
     if !header_target.exists() {
-        fs::create_dir(&header_target).unwrap_or_else(|_| {
+        fs::create_dir_all(&header_target).unwrap_or_else(|_| {
             panic!(
                 "Failed to create target directory for header files: {:?}",
                 header_target
@@ -26,6 +19,7 @@ fn main() {
         });
     }
 
+    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     for entry in glob(&format!("{}/include/*.h", crate_dir)).expect("Failed to find headers.") {
         match entry {
             Ok(src) => {
@@ -39,7 +33,8 @@ fn main() {
         }
     }
 
-    // Copy CMake config file so it can be used by other plugins
+    // Copy CMake config file to "$OUT_DIR/cmake" to make it easier to find by other CMake scripts.
+    // Note that the other cmake script still needs to find the correct OUT_DIR.
 
     let cmake_target = out_dir.join("cmake");
     if !cmake_target.exists() {
@@ -54,12 +49,22 @@ fn main() {
     let cmake_config_file = PathBuf::from("hdkrsConfig.cmake");
     let dst = cmake_target.join(&cmake_config_file);
     let src = PathBuf::from(crate_dir).join(&cmake_config_file);
-    println!("copying {:?} to {:?}", src, dst);
     fs::copy(&src, &dst)
         .unwrap_or_else(|_| panic!("Failed to copy cmake config {:?}", cmake_config_file));
 
-    println!("cargo:rustc-link-lib=static=cxxbridge-hdkrs");
-    println!("cargo:rerun-if-changed=src/lib.rs");
+    // Build the cxx bridge
+
+    // Re-export the headers in the cxx bridge target.
+    CFG.exported_header_dirs.push(&include_target);
+
+    let build = cxx_build::bridge("src/lib.rs");
+
+    cmake::Config::new(".")
+        .no_build_target(true)
+        .build_with(build.clone(), build.clone());
+
+    println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=include");
+    println!("cargo:rerun-if-changed=CMakeLists.txt");
     println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
 }

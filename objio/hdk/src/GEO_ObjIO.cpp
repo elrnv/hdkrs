@@ -1,22 +1,24 @@
+#include <iostream>
+#include <optional>
+
 // Required for proper loading.
 #include <UT/UT_DSOVersion.h>
-
 #include <GU/GU_Detail.h>
 #include <GEO/GEO_AttributeHandle.h>
 #include <GEO/GEO_IOTranslator.h>
 #include <UT/UT_IStream.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_IOTable.h>
-#include <boost/variant.hpp>
-#include <hdkrs/io.h>
-#include <hdkrs/mesh.h>
-#include <hdkrs.h>
-#include <iostream>
 
-#include "add_mesh_visitor.h"
+// All relevant hdkrs headers. This includes HDK specific headers and the cxx bridge headers.
+#include <hdkrs/prelude.h>
+
+// Rust interface into objio.
+#include <objio/src/lib.rs.h>
+
 #include "GEO_ObjIO.h"
 
-using namespace hdkrs;
+using namespace std;
 
 GEO_IOTranslator *
 GEO_ObjIO::duplicate() const
@@ -55,10 +57,8 @@ GEO_ObjIO::fileLoad(GEO_Detail *detail, UT_IStream &is, bool)
     bool success = is.getAll(buf);
     if (!success)
         return GA_Detail::IOStatus(success);
-    exint size = buf.length();
-    auto data = buf.buffer();
-    io::MeshVariant mesh = io::parse_obj_mesh(data, size);
-    boost::apply_visitor( AddMesh(detail), std::move(mesh) );
+    rust::Slice<const uint8_t> slice(reinterpret_cast<const unsigned char*>(buf.buffer()), buf.length());
+    objio::add_obj_mesh(static_cast<GU_Detail &>(*detail), slice);
     return GA_Detail::IOStatus(success);
 }
 
@@ -68,20 +68,18 @@ GEO_ObjIO::fileSave(const GEO_Detail *detail, std::ostream &os)
     if (!detail) // nothing to do
         return GA_Detail::IOStatus(true);
 
-    OwnedPtr<HR_PolyMesh> polymesh = mesh::build_polymesh(static_cast<const GU_Detail*>(detail));
-    if (polymesh) {
-        auto buf = io::ByteBuffer::write_obj_mesh(std::move(polymesh));
-        os.write(buf.data(), buf.size());
+    try {
+        auto buf = objio::polymesh_to_obj_buffer(static_cast<const GU_Detail&>(*detail));
+        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    }
+    } catch(const std::runtime_error& e) {}
 
     // If no polygons are found we try to save the pointcloud
-    OwnedPtr<HR_PointCloud> pointcloud = mesh::build_pointcloud(static_cast<const GU_Detail*>(detail));
-    if (pointcloud) {
-        auto buf = io::ByteBuffer::write_obj_mesh(std::move(pointcloud));
-        os.write(buf.data(), buf.size());
+    try {
+        auto buf = objio::pointcloud_to_obj_buffer(static_cast<const GU_Detail&>(*detail));
+        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    }
+    } catch(const std::runtime_error& e) {}
 
     return GA_Detail::IOStatus(false);
 }

@@ -1,9 +1,8 @@
-#pragma once
-
 #include <optional>
 #include <vector>
 #include <cassert>
 #include <string>
+#include <stdexcept>
 
 #include <UT/UT_Debug.h>
 #include <GU/GU_Detail.h>
@@ -12,7 +11,12 @@
 #include <GEO/GEO_PolyCounts.h>
 #include <GA/GA_PageHandle.h>
 
-namespace hdkrs {
+#include <rust/cxx.h>
+#include "hdkrs/src/lib.rs.h"
+
+#include "mesh.h"
+
+using namespace hdkrs;
 
 inline std::ostream& operator<<(std::ostream& out, AttribLocation where) {
     switch (where) {
@@ -25,8 +29,6 @@ inline std::ostream& operator<<(std::ostream& out, AttribLocation where) {
     }
     return out;
 }
-
-namespace {
 
 // The following items define various version of the add_attrib function which
 // adds an attribute of a given type to a given mesh or point cloud.
@@ -134,21 +136,21 @@ AttribLocation mesh_vertex_attrib_location<TetMesh>() { return AttribLocation::C
 // Mark all points and vectors in the given detail that intersect the primitives of interest.
 std::tuple<std::vector<bool>, std::size_t>
 mark_points_and_count_vertices(
-        const GU_Detail *detail,
+        const GU_Detail& detail,
         GA_PrimitiveTypeId prim_type_id)
 {
-    std::vector<bool> points(detail->getNumPointOffsets(), false);
+    std::vector<bool> points(detail.getNumPointOffsets(), false);
     std::size_t num_vertices = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() )
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() == prim_type_id)
         {
-            GA_Size num_prim_verts = detail->getPrimitiveVertexCount(prim_off);
+            GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
             num_vertices += num_prim_verts;
             for ( GA_Size idx = 0; idx < num_prim_verts; ++idx ) {
-                auto vtx_off = detail->getPrimitiveVertexOffset(prim_off, idx);
-                points[detail->vertexPoint(vtx_off)] = true;
+                auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
+                points[detail.vertexPoint(vtx_off)] = true;
             }
         }
     }
@@ -159,7 +161,7 @@ mark_points_and_count_vertices(
 template<typename T, typename M, typename S = T>
 void
 fill_prim_attrib(
-        const GU_Detail *detail,
+        const GU_Detail& detail,
         const GA_AIFTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -168,9 +170,9 @@ fill_prim_attrib(
 {
     std::vector<T> data(tuple_size*num_elem);
     int i = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() )
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
         for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
             S val;
@@ -186,7 +188,7 @@ fill_prim_attrib(
 
 template<typename T, typename M, typename S = T>
 void fill_point_attrib(
-        const GU_Detail *detail,
+        const GU_Detail &detail,
         const GA_AIFTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -196,7 +198,7 @@ void fill_point_attrib(
 {
     std::vector<T> data(tuple_size*num_elem);
     int i = 0;
-    for ( GA_Offset pt_off : detail->getPointRange() )
+    for ( GA_Offset pt_off : detail.getPointRange() )
     {
         if (!group[pt_off]) continue;
         for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
@@ -213,7 +215,7 @@ void fill_point_attrib(
 
 template<typename T, typename M, typename S = T>
 void fill_vertex_attrib(
-        const GU_Detail *detail,
+        const GU_Detail &detail,
         const GA_AIFTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -222,12 +224,12 @@ void fill_vertex_attrib(
 {
     std::vector<T> data(tuple_size*num_elem);
     int i = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() ) {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() ) {
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
-        GA_Size num_prim_verts = detail->getPrimitiveVertexCount(prim_off);
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
         for (GA_Size idx = 0; idx < num_prim_verts; ++idx) {
-            auto vtx_off = detail->getPrimitiveVertexOffset(prim_off, idx);
+            auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
             for (int k = 0, k_end = tuple_size; k < k_end; ++k) {
                 S val;
                 aif->get(attrib, vtx_off, val, k);
@@ -243,7 +245,7 @@ void fill_vertex_attrib(
 
 template<typename M>
 void fill_prim_str_attrib(
-        const GU_Detail *detail,
+        const GU_Detail &detail,
         const GA_AIFSharedStringTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -261,9 +263,9 @@ void fill_prim_str_attrib(
     std::vector<int64_t> indices(tuple_size*num_elem, -1);
 
     int i = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() )
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() == mesh_prim_type_id<M>())
         {
             for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
@@ -280,7 +282,7 @@ void fill_prim_str_attrib(
 
 template<typename M>
 void fill_point_str_attrib(
-        const GU_Detail *detail,
+        const GU_Detail &detail,
         const GA_AIFSharedStringTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -299,7 +301,7 @@ void fill_point_str_attrib(
     std::vector<int64_t> indices(tuple_size*num_elem, -1);
 
     int i = 0;
-    for ( GA_Offset pt_off : detail->getPointRange() )
+    for ( GA_Offset pt_off : detail.getPointRange() )
     {
         if (!group[pt_off]) continue;
         for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
@@ -315,7 +317,7 @@ void fill_point_str_attrib(
 
 template<typename M>
 void fill_vertex_str_attrib(
-        const GU_Detail *detail,
+        const GU_Detail &detail,
         const GA_AIFSharedStringTuple *aif,
         const GA_Attribute *attrib,
         std::size_t tuple_size,
@@ -333,12 +335,12 @@ void fill_vertex_str_attrib(
     std::vector<int64_t> indices(tuple_size*num_elem, -1);
 
     int i = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() ) {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() ) {
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
-        GA_Size num_prim_verts = detail->getPrimitiveVertexCount(prim_off);
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
         for (GA_Size idx = 0; idx < num_prim_verts; ++idx) {
-            auto vtx_off = detail->getPrimitiveVertexOffset(prim_off, idx);
+            auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
             for (int k = 0, k_end = tuple_size; k < k_end; ++k) {
                 GA_StringIndexType handle = aif->getHandle(attrib, vtx_off, k);
                 indices[tuple_size * i + k] = handle > -1 ? ids[handle] : -1;
@@ -352,9 +354,9 @@ void fill_vertex_str_attrib(
 }
 
 template<typename M>
-void transfer_primitive_attributes(const GU_Detail* detail, M* mesh, std::size_t num_prims) {
+void transfer_primitive_attributes(const GU_Detail& detail, M* mesh, std::size_t num_prims) {
     // Get prim data attributes
-    for (auto it = detail->getAttributeDict(GA_ATTRIB_PRIMITIVE).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
+    for (auto it = detail.getAttributeDict(GA_ATTRIB_PRIMITIVE).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
     {
         GA_Attribute *attrib = it.attrib();
         std::size_t tuple_size = attrib->getTupleSize();
@@ -396,10 +398,10 @@ void transfer_primitive_attributes(const GU_Detail* detail, M* mesh, std::size_t
 
 // Transfer attributes from points marked in the given pt_grp
 template<typename M>
-void transfer_point_attributes(const GU_Detail* detail, M* mesh, const std::vector<bool>& pt_grp)
+void transfer_point_attributes(const GU_Detail& detail, M* mesh, const std::vector<bool>& pt_grp)
 {
     std::size_t num_points = std::count(pt_grp.begin(), pt_grp.end(), true);
-    for (auto it = detail->getAttributeDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
+    for (auto it = detail.getAttributeDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
     {
         GA_Attribute *attrib = it.attrib();
         if (attrib->getTypeInfo() == GA_TYPE_POINT) // ignore position attribute
@@ -444,9 +446,9 @@ void transfer_point_attributes(const GU_Detail* detail, M* mesh, const std::vect
 
 // Transfer attributes from vertices marked in the given vtx_grp
 template<typename M>
-void transfer_vertex_attributes(const GU_Detail* detail, M* mesh, std::size_t num_vertices)
+void transfer_vertex_attributes(const GU_Detail& detail, M* mesh, std::size_t num_vertices)
 {
-    for (auto it = detail->getAttributeDict(GA_ATTRIB_VERTEX).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
+    for (auto it = detail.getAttributeDict(GA_ATTRIB_VERTEX).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it)
     {
         GA_Attribute *attrib = it.attrib();
         std::size_t tuple_size = attrib->getTupleSize();
@@ -488,7 +490,7 @@ void transfer_vertex_attributes(const GU_Detail* detail, M* mesh, std::size_t nu
 }
 
 template<typename M>
-void transfer_attributes(const GU_Detail* detail, M* mesh, std::size_t num_prims)
+void transfer_attributes(const GU_Detail& detail, M* mesh, std::size_t num_prims)
 {
     transfer_primitive_attributes(detail, mesh, num_prims);
 
@@ -512,7 +514,7 @@ void fill_attrib(HandleType h, ArrayType arr, GA_Offset startoff) {
     }
 }
 
-void fill_str_attrib(GA_RWHandleS h, const rust::Box<TupleVecStr> &arr, GA_Offset startoff) {
+void fill_str_attrib(GA_RWHandleS h, const rust::box<TupleVecStr> &arr, GA_Offset startoff) {
     if (h.isInvalid()) return;
     std::size_t i = 0;
     auto n = startoff + (arr->len()/arr->tuple_size());
@@ -525,7 +527,7 @@ void fill_str_attrib(GA_RWHandleS h, const rust::Box<TupleVecStr> &arr, GA_Offse
 
 /** Retrieve attributes from the mesh using the given iterator.
  */
-void retrieve_attributes(GU_Detail *detail, GA_Offset startoff, rust::Box<AttribIter> it, GA_AttributeOwner owner) {
+void retrieve_attributes(GU_Detail *detail, GA_Offset startoff, rust::box<AttribIter> it, GA_AttributeOwner owner) {
     for ( ;; ) {
         if (!it->has_next()) break;
         auto attrib = it->next();
@@ -572,7 +574,7 @@ void update_attrib(HandleType h, ArrayType arr) {
 
 /** Update attributes of the mesh using the given iterator.
  */
-void update_attributes(GU_Detail *detail, rust::Box<AttribIter> it, GA_AttributeOwner owner) {
+void update_attributes(GU_Detail *detail, rust::box<AttribIter> it, GA_AttributeOwner owner) {
     for ( ;; ) {
         if ( !it->has_next() ) break;
         auto attrib = it->next();
@@ -606,8 +608,7 @@ void update_attributes(GU_Detail *detail, rust::Box<AttribIter> it, GA_Attribute
 /**
  * Add a mesh to the current detail.
  */
-[[maybe_unused]]
-void add_mesh(GU_Detail* detail, rust::Box<Mesh> mesh) {
+void add_mesh(GU_Detail* detail, rust::box<Mesh> mesh) {
     // No exceptions should be thrown here since we check the tag explicitly.
     switch (mesh->tag()) {
         case MeshTag::TetMesh:
@@ -626,8 +627,7 @@ void add_mesh(GU_Detail* detail, rust::Box<Mesh> mesh) {
 /**
  * Add a tetmesh to the current detail
  */
-[[maybe_unused]]
-void add_tetmesh(GU_Detail* detail, rust::Box<TetMesh> tetmesh) {
+void add_tetmesh(GU_Detail* detail, rust::box<TetMesh> tetmesh) {
     try {
         GA_Offset startvtxoff = GA_Offset(detail->getNumVertexOffsets());
         auto point_coords = tetmesh->get_point_coords();
@@ -658,8 +658,7 @@ void add_tetmesh(GU_Detail* detail, rust::Box<TetMesh> tetmesh) {
 /**
  * Add a polymesh to the current detail
  */
-[[maybe_unused]]
-void add_polymesh(GU_Detail* detail, rust::Box<PolyMesh> polymesh) {
+void add_polymesh(GU_Detail* detail, rust::box<PolyMesh> polymesh) {
     GA_Offset startvtxoff = GA_Offset(detail->getNumVertexOffsets());
     auto point_coords = polymesh->get_point_coords();
     auto num_points = point_coords.size()/3;
@@ -702,8 +701,7 @@ void add_polymesh(GU_Detail* detail, rust::Box<PolyMesh> polymesh) {
 /**
  * Add a ptcloud to the current detail
  */
-[[maybe_unused]]
-void add_pointcloud(GU_Detail* detail, rust::Box<PointCloud> ptcloud) {
+void add_pointcloud(GU_Detail* detail, rust::box<PointCloud> ptcloud) {
     auto point_coords = ptcloud->get_point_coords();
     auto num_points = point_coords.size()/3;
 
@@ -720,8 +718,7 @@ void add_pointcloud(GU_Detail* detail, rust::Box<PointCloud> ptcloud) {
 /**
  * Update points in the detail according to what's in the ptcloud
  */
-[[maybe_unused]]
-void update_points(GU_Detail* detail, rust::Box<PointCloud> ptcloud) {
+void update_points(GU_Detail* detail, rust::box<PointCloud> ptcloud) {
     auto point_coords = ptcloud->get_point_coords();
     auto num_points = point_coords.size()/3;
 
@@ -733,75 +730,74 @@ void update_points(GU_Detail* detail, rust::Box<PointCloud> ptcloud) {
     update_attributes(detail, ptcloud->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
 }
 
-[[maybe_unused]]
-std::optional<rust::Box<TetMesh>> build_tetmesh(const GU_Detail *detail) {
+rust::box<TetMesh> build_tetmesh(const GU_Detail& detail) {
     // Get tets for the solid from the first input
     std::vector<double> tet_vertices;
-    tet_vertices.reserve(3*detail->getNumPointOffsets());
+    tet_vertices.reserve(3*detail.getNumPointOffsets());
     std::vector<std::size_t> tet_indices;
-    tet_indices.reserve(3*detail->getNumVertexOffsets());
+    tet_indices.reserve(3*detail.getNumVertexOffsets());
 
-    for ( GA_Offset pt_off : detail->getPointRange() )
+    for ( GA_Offset pt_off : detail.getPointRange() )
     {
-        UT_Vector3 pt = detail->getPos3(pt_off);
+        UT_Vector3 pt = detail.getPos3(pt_off);
         tet_vertices.push_back( static_cast<double>(pt[0]) );
         tet_vertices.push_back( static_cast<double>(pt[1]) );
         tet_vertices.push_back( static_cast<double>(pt[2]) );
     }
 
     std::size_t num_tets = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() )
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() == GA_PRIMTETRAHEDRON) {
             num_tets += 1;
             const GEO_PrimTetrahedron *tet = static_cast<const GEO_PrimTetrahedron*>(prim);
-            tet_indices.push_back(detail->pointIndex(detail->vertexPoint(tet->fastVertexOffset(0))));
-            tet_indices.push_back(detail->pointIndex(detail->vertexPoint(tet->fastVertexOffset(1))));
-            tet_indices.push_back(detail->pointIndex(detail->vertexPoint(tet->fastVertexOffset(2))));
-            tet_indices.push_back(detail->pointIndex(detail->vertexPoint(tet->fastVertexOffset(3))));
+            tet_indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(0))));
+            tet_indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(1))));
+            tet_indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(2))));
+            tet_indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(3))));
         }
     }
 
     // Only creating a mesh if there are tets.
-    if (num_tets > 0) {
-        rust::Box<TetMesh> tetmesh = make_tetmesh(
-                rust::Slice(static_cast<const double *>(tet_vertices.data()), tet_vertices.size()),
-                rust::Slice(static_cast<const uint64_t *>(tet_indices.data()), tet_indices.size()));
-
-        auto tetmesh_ptr = tetmesh.into_raw();
-        transfer_attributes(detail, tetmesh_ptr, num_tets);
-        return std::make_optional(rust::Box<TetMesh>::from_raw(tetmesh_ptr));
+    if (num_tets == 0) {
+        throw std::runtime_error("No tetrahedra found");
     }
-    return {};
+
+    rust::box<TetMesh> tetmesh = make_tetmesh(
+            rust::Slice(static_cast<const double *>(tet_vertices.data()), tet_vertices.size()),
+            rust::Slice(static_cast<const uint64_t *>(tet_indices.data()), tet_indices.size()));
+
+    TetMesh* tetmesh_ptr = tetmesh.into_raw();
+    transfer_attributes(detail, tetmesh_ptr, num_tets);
+    return rust::box<TetMesh>::from_raw(tetmesh_ptr);
 }
 
-[[maybe_unused]]
-std::optional<rust::Box<PolyMesh>> build_polymesh(const GU_Detail* detail) {
+rust::box<PolyMesh> build_polymesh(const GU_Detail& detail) {
     std::vector<double> poly_vertices;
-    poly_vertices.reserve(3*detail->getNumPointOffsets());
+    poly_vertices.reserve(3*detail.getNumPointOffsets());
     std::vector<std::size_t> poly_indices;
-    poly_indices.reserve(3*detail->getNumVertexOffsets());
+    poly_indices.reserve(3*detail.getNumVertexOffsets());
 
-    for ( GA_Offset pt_off : detail->getPointRange() )
+    for ( GA_Offset pt_off : detail.getPointRange() )
     {
-        UT_Vector3 pos = detail->getPos3(pt_off);
+        UT_Vector3 pos = detail.getPos3(pt_off);
         poly_vertices.push_back( static_cast<double>(pos[0]) );
         poly_vertices.push_back( static_cast<double>(pos[1]) );
         poly_vertices.push_back( static_cast<double>(pos[2]) );
     }
 
     std::size_t num_polys = 0;
-    for ( GA_Offset prim_off : detail->getPrimitiveRange() )
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
-        const GEO_Primitive *prim = detail->getGEOPrimitive(prim_off);
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
         if (prim->getTypeId() == GA_PRIMPOLY) {
             num_polys += 1;
             const GEO_PrimPoly *poly = static_cast<const GEO_PrimPoly*>(prim);
             std::size_t num_verts = poly->getVertexCount();
             poly_indices.push_back(num_verts);
             for ( std::size_t i = 0; i < num_verts; ++i ) {
-                GA_Index idx = detail->pointIndex(detail->vertexPoint(poly->getVertexOffset(i)));
+                GA_Index idx = detail.pointIndex(detail.vertexPoint(poly->getVertexOffset(i)));
                 assert(GAisValid(idx));
                 poly_indices.push_back(static_cast<std::size_t>(idx));
             }
@@ -809,48 +805,44 @@ std::optional<rust::Box<PolyMesh>> build_polymesh(const GU_Detail* detail) {
     }
 
     // Only creating a mesh if there are polys.
-    if (num_polys > 0) {
-        rust::Slice vertices_slice(static_cast<const double *>(poly_vertices.data()), poly_vertices.size());
-        rust::Slice indices_slice(static_cast<const uint64_t *>(poly_indices.data()), poly_indices.size());
-        rust::Box<PolyMesh> polymesh = make_polymesh(vertices_slice, indices_slice);
-
-        auto polymesh_ptr = polymesh.into_raw();
-        transfer_attributes(detail, polymesh_ptr, num_polys);
-        return std::make_optional(rust::Box<PolyMesh>::from_raw(polymesh_ptr));
+    if (num_polys == 0) {
+        throw std::runtime_error("No polygons found");
     }
-    return {};
+
+    rust::Slice vertices_slice(static_cast<const double *>(poly_vertices.data()), poly_vertices.size());
+    rust::Slice indices_slice(static_cast<const uint64_t *>(poly_indices.data()), poly_indices.size());
+    rust::box<PolyMesh> polymesh = make_polymesh(vertices_slice, indices_slice);
+
+    auto polymesh_ptr = polymesh.into_raw();
+    transfer_attributes(detail, polymesh_ptr, num_polys);
+    return rust::box<PolyMesh>::from_raw(polymesh_ptr);
 }
 
-[[maybe_unused]]
-std::optional<rust::Box<PointCloud>> build_pointcloud(const GU_Detail* detail) {
-    std::vector<double> vertex_coords(3*detail->getNumPoints());
-    std::vector<bool> pt_grp(detail->getNumPointOffsets(), false);
+rust::box<PointCloud> build_pointcloud(const GU_Detail& detail) {
+    std::vector<double> vertex_coords(3*detail.getNumPoints());
+    std::vector<bool> pt_grp(detail.getNumPointOffsets(), false);
 
     // We are gonna be smarter here and use block access to point data.
-    GA_ROPageHandleV3 P_ph(detail->getP());
+    GA_ROPageHandleV3 P_ph(detail.getP());
 
     if (P_ph.isValid()) {
         GA_Offset start, end;
-        for (GA_Iterator it(detail->getPointRange()); it.blockAdvance(start, end); ) {
+        for (GA_Iterator it(detail.getPointRange()); it.blockAdvance(start, end); ) {
             P_ph.setPage(start);
             for (GA_Offset offset = start; offset < end; ++offset) {
                 pt_grp[offset] = true;
                 auto pos = P_ph.get(offset);
-                vertex_coords[3*detail->pointIndex(offset)] = static_cast<double>( pos[0]);
-                vertex_coords[3*detail->pointIndex(offset)+1] = static_cast<double>( pos[1]);
-                vertex_coords[3*detail->pointIndex(offset)+2] = static_cast<double>( pos[2]);
+                vertex_coords[3*detail.pointIndex(offset)] = static_cast<double>( pos[0]);
+                vertex_coords[3*detail.pointIndex(offset)+1] = static_cast<double>( pos[1]);
+                vertex_coords[3*detail.pointIndex(offset)+2] = static_cast<double>( pos[2]);
             }
         }
     }
 
     rust::Slice vertex_coords_slice(static_cast<const double *>(vertex_coords.data()), vertex_coords.size());
-    rust::Box<PointCloud> ptcloud = make_pointcloud(vertex_coords_slice);
+    rust::box<PointCloud> ptcloud = make_pointcloud(vertex_coords_slice);
 
     auto ptcloud_ptr = ptcloud.into_raw();
     transfer_point_attributes(detail, ptcloud_ptr, pt_grp);
-    return rust::Box<PointCloud>::from_raw(ptcloud_ptr);
+    return rust::box<PointCloud>::from_raw(ptcloud_ptr);
 }
-
-}
-
-} // namespace hdkrs

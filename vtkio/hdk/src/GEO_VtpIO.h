@@ -1,9 +1,10 @@
 #pragma once
 
+#include <iostream>
+
 #include <GU/GU_Detail.h>
 #include <GEO/GEO_IOTranslator.h>
 #include <UT/UT_IStream.h>
-#include <iostream>
 
 class GEO_VtpIO : public GEO_IOTranslator
 {

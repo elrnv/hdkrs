@@ -8,6 +8,22 @@ pub mod interop;
 
 #[cxx::bridge(namespace = "hdkrs")]
 pub mod ffi {
+    #[namespace = ""]
+    extern "C++" {
+        include!("hdkrs/mesh.h");
+        type GU_Detail;
+    }
+    unsafe extern "C++" {
+        fn add_mesh(detail: Pin<&mut GU_Detail>, mesh: Box<Mesh>);
+        fn add_polymesh(detail: Pin<&mut GU_Detail>, polymesh: Box<PolyMesh>);
+        fn add_tetmesh(detail: Pin<&mut GU_Detail>, tetmesh: Box<TetMesh>);
+        fn add_pointcloud(detail: Pin<&mut GU_Detail>, ptcloud: Box<PointCloud>);
+        fn update_points(detail: Pin<&mut GU_Detail>, ptcloud: Box<PointCloud>);
+
+        fn build_polymesh(detail: &GU_Detail) -> Result<Box<PolyMesh>>;
+        fn build_tetmesh(detail: &GU_Detail) -> Result<Box<TetMesh>>;
+        fn build_pointcloud(detail: &GU_Detail) -> Result<Box<PointCloud>>;
+    }
     extern "Rust" {
         type PolyMesh;
         fn get_point_coords(&self) -> Vec<f64>;
