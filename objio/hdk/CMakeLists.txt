@@ -59,7 +59,6 @@ if(WIN32)
     target_link_libraries( ${library_name} PRIVATE Ws2_32 userenv )
 endif(WIN32)
 
-# Include ${CMAKE_CURRENT_BINARY_DIR} for the generated header.
 target_include_directories( ${library_name} PRIVATE ${objiors_INCLUDE_DIRS} ${hdkrs_INCLUDE_DIRS} )
 
 # Sets several common target properties, such as the library's output directory.

@@ -50,7 +50,7 @@ GEO_VtkIO::fileLoad(GEO_Detail *detail, UT_IStream &is, bool)
     if (!success)
         return GA_Detail::IOStatus(success);
     rust::Slice<const uint8_t> slice(reinterpret_cast<const unsigned char*>(buf.buffer()), buf.length());
-    vtkio::add_vtk_mesh(static_cast<GU_Detail&>(*detail), slice);
+    vtkio::add_vtk_mesh(*static_cast<GU_Detail*>(detail), slice);
     return GA_Detail::IOStatus(success);
 }
 
@@ -60,23 +60,25 @@ GEO_VtkIO::fileSave(const GEO_Detail *detail, std::ostream &os)
     if (!detail) // nothing to do
         return GA_Detail::IOStatus(true);
 
+    const GU_Detail &gud = *static_cast<const GU_Detail*>(detail);
+
     // Try to save the tetmesh first
     try {
-        auto buf = vtkio::tetmesh_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        auto buf = vtkio::tetmesh_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
     } catch(const std::runtime_error& e) {}
 
     // If no tets are found we try to save the polymesh
     try {
-        auto buf = vtkio::polymesh_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        auto buf = vtkio::polymesh_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
     } catch(const std::runtime_error& e) { }
 
     // If no polygons are found we try to save the pointcloud
     try {
-        auto buf = vtkio::pointcloud_to_vtk_buffer(static_cast<const GU_Detail&>(*detail));
+        auto buf = vtkio::pointcloud_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
     } catch(const std::runtime_error& e) { }

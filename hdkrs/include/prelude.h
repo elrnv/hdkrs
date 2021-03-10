@@ -1,6 +1,7 @@
 #include <hdkrs/src/lib.rs.h>
 #include <rust/cxx.h>
 #include "mesh.h"
+#include "interrupt.h"
 
 namespace hdkrs {
     /// Utility function for casting a Box of one type to a Box of another.

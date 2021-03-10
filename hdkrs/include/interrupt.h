@@ -1,20 +1,17 @@
 #pragma once
 
-#include <UT/UT_Interrupt.h>
+#include <memory>
+
+class UT_AutoInterrupt;
 
 namespace hdkrs {
 
-// Interrupt checker.
 struct InterruptChecker {
-    UT_AutoInterrupt progress;
-
-    InterruptChecker(const char * status_message)
-        : progress(status_message) {
-    }
+    std::unique_ptr<UT_AutoInterrupt> progress;
+    InterruptChecker(const char * status_message);
+    bool check_interrupt();
 };
 
-bool check_interrupt(const void *interrupt) {
-    return static_cast<InterruptChecker*>(const_cast<void *>(interrupt))->progress.wasInterrupted();
-}
+std::unique_ptr<InterruptChecker> new_interrupt_checker(std::string message);
 
-} // namespace interrupt
+} // namespace hdkrs

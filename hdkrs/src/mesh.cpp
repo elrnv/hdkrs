@@ -846,3 +846,5 @@ rust::box<PointCloud> build_pointcloud(const GU_Detail& detail) {
     transfer_point_attributes(detail, ptcloud_ptr, pt_grp);
     return rust::box<PointCloud>::from_raw(ptcloud_ptr);
 }
+
+void impl_shared_ptr(std::shared_ptr<GU_Detail> detail) {}

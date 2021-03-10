@@ -8,22 +8,6 @@ pub use std::ffi::c_void;
 use std::ptr::NonNull;
 
 //
-// Convert interrupt callback
-//
-
-/// Utility to cast the void pointer to the interrupt checker function a valid Rust type.
-pub unsafe fn interrupt_callback(
-    checker: *mut c_void,
-    check_interrupt: Option<extern "C" fn(*const c_void) -> bool>,
-) -> impl Fn() -> bool + Clone {
-    let interrupt_ref = &*checker; // conversion needed since *mut c_void is not Send
-    move || match check_interrupt {
-        Some(cb) => cb(interrupt_ref as *const c_void),
-        None => true,
-    }
-}
-
-//
 // Convert result type
 //
 

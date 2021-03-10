@@ -9,10 +9,19 @@ pub mod interop;
 #[cxx::bridge(namespace = "hdkrs")]
 pub mod ffi {
     #[namespace = ""]
-    extern "C++" {
+    unsafe extern "C++" {
         include!("hdkrs/mesh.h");
+        include!("hdkrs/interrupt.h");
         type GU_Detail;
+        fn impl_shared_ptr(detail: SharedPtr<GU_Detail>);
     }
+
+    unsafe extern "C++" {
+        type InterruptChecker;
+        fn check_interrupt(self: Pin<&mut InterruptChecker>) -> bool;
+        fn new_interrupt_checker(message: &CxxString) -> UniquePtr<InterruptChecker>;
+    }
+
     unsafe extern "C++" {
         fn add_mesh(detail: Pin<&mut GU_Detail>, mesh: Box<Mesh>);
         fn add_polymesh(detail: Pin<&mut GU_Detail>, polymesh: Box<PolyMesh>);
@@ -210,33 +219,39 @@ pub mod ffi {
         fn make_tetmesh(coords: &[f64], indices: &[usize]) -> Box<TetMesh>;
     }
 
+    #[derive(Debug)]
     pub struct TupleVecI8 {
         vec: Vec<i8>,
         tuple_size: usize,
     }
+    #[derive(Debug)]
     pub struct TupleVecI32 {
         vec: Vec<i32>,
         tuple_size: usize,
     }
+    #[derive(Debug)]
     pub struct TupleVecI64 {
         vec: Vec<i64>,
         tuple_size: usize,
     }
+    #[derive(Debug)]
     pub struct TupleVecF32 {
         vec: Vec<f32>,
         tuple_size: usize,
     }
+    #[derive(Debug)]
     pub struct TupleVecF64 {
         vec: Vec<f64>,
         tuple_size: usize,
     }
+    #[derive(Debug)]
     pub enum CookResultTag {
         SUCCESS,
         WARNING,
         ERROR,
     }
 
-    /// Result for C interop.
+    #[derive(Debug)]
     pub struct CookResult {
         pub message: String,
         pub tag: CookResultTag,
@@ -251,6 +266,7 @@ pub mod ffi {
         CELLVERTEX,
     }
 
+    #[derive(Debug)]
     pub enum DataType {
         I8,
         I32,
@@ -261,6 +277,7 @@ pub mod ffi {
         UNSUPPORTED,
     }
 
+    #[derive(Debug)]
     pub enum MeshTag {
         TetMesh,
         PolyMesh,
@@ -271,8 +288,12 @@ pub mod ffi {
 
 use self::ffi::*;
 
+unsafe impl Send for InterruptChecker {}
+unsafe impl Sync for InterruptChecker {}
+
 /// A Rust polygon mesh struct.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct PolyMesh(pub mesh::PolyMesh<f64>);
 
 impl From<mesh::PolyMesh<f64>> for PolyMesh {
@@ -283,6 +304,7 @@ impl From<mesh::PolyMesh<f64>> for PolyMesh {
 
 /// A Rust tetmesh struct.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct TetMesh(pub mesh::TetMesh<f64>);
 
 impl From<mesh::TetMesh<f64>> for TetMesh {
@@ -293,6 +315,7 @@ impl From<mesh::TetMesh<f64>> for TetMesh {
 
 /// A Rust pointcloud struct.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct PointCloud(pub mesh::PointCloud<f64>);
 
 impl From<mesh::PointCloud<f64>> for PointCloud {

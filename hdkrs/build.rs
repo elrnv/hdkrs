@@ -63,8 +63,8 @@ fn main() {
         .no_build_target(true)
         .build_with(build.clone(), build.clone());
 
-    println!("cargo:rerun-if-changed=src");
-    println!("cargo:rerun-if-changed=include");
+    println!("cargo:rerun-if-changed=src/*");
+    println!("cargo:rerun-if-changed=include/*");
     println!("cargo:rerun-if-changed=CMakeLists.txt");
     println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
 }

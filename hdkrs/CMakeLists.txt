@@ -31,6 +31,7 @@ set( library_name libhdkrs )
 # Add a library and its source files.
 add_library( ${library_name} STATIC
   src/mesh.cpp
+  src/interrupt.cpp
 )
 
 set_property(TARGET ${library_name} PROPERTY CXX_STANDARD 17)
