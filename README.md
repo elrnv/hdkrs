@@ -13,6 +13,7 @@ We use the [`cxx`](https://cxx.rs/) crate to facilitate an intuitive interface f
 
 # Building and Installing
 
+## Prerequisites
 In general you will need the following tools available on your system:
 - [rustc and Cargo](https://www.rust-lang.org/learn/get-started).
 - [CMake](https://cmake.org/) for building the C++ part of HDK plugins and `hdkrs` itself.
@@ -26,7 +27,12 @@ In general you will need the following tools available on your system:
 
 You will then need to [setup the Houdini development
 environment](https://www.sidefx.com/docs/hdk/_h_d_k__intro__getting_started.html). On Linux and macOS this means sourcing the `houdini_setup` script from the Houdini install directory. On Windows this means opening the "Command Line Tools" program provided with the Houdini install.
-Then `cd` into the root directory of the plugin you want to build (e.g. `objio` in this repo), and run the following command:
+
+## Building and Installing an HDK plugin
+
+First make sure that all the steps in the section above are completed.
+
+Change the current working directory (or `cd`) to the root directory of the plugin you want to build (e.g. `objio` in this repo), and run the following command:
 ```
 > cargo hdk --release
 ```
@@ -42,3 +48,17 @@ There are a number of areas that need imporovement:
    It is not the aim here to exactly mimic the HDK data structures, however the abstractions we use should capture as much of the available data as possible. For instance, when transferring meshes from the HDK, we should be able to carry all or most of the attributes available.
 
 The above points are merely guidelines. The plan for this crate is not set in stone. I am open to suggestions :-)
+
+# License
+
+This repository is licensed under either of
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+   https://www.apache.org/licenses/LICENSE-2.0)
+ * MIT License ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
+
+at your option.
+
+Unless You explicitly state otherwise, any Contribution intentionally submitted for inclusion in
+the Work by You, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.
