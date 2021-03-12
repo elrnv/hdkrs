@@ -542,7 +542,7 @@ impl<'a> Attribute<'a> {
     pub fn data_type(&self) -> DataType {
         self.data.data_type()
     }
-    pub fn name<'b>(&'b self) -> &'b str {
+    pub fn name(&self) -> &str {
         self.name.as_str()
     }
 }

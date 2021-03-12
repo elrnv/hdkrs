@@ -7,7 +7,7 @@ links = "cxxbridge-objiohdk"
 
 [lib]
 name = "objiors"
-crate-type = ["staticlib", "rlib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 gut = { version = "0.6", features = ["io", "serde_all"] }
@@ -16,3 +16,4 @@ cxx = "1.0"
 
 [build-dependencies]
 cxx-build = "1.0"
+cmake = { git = "https://github.com/elrnv/cmake-rs.git", version = "0.1" }

@@ -61,10 +61,16 @@ fn main() {
 
     cmake::Config::new(".")
         .no_build_target(true)
-        .build_with(build.clone(), build.clone());
+        .init_c_cfg(build.clone())
+        .init_cxx_cfg(build)
+        .build();
 
     println!("cargo:rerun-if-changed=src/*");
     println!("cargo:rerun-if-changed=include/*");
     println!("cargo:rerun-if-changed=CMakeLists.txt");
     println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
+
+    // Link against the cxxbridge
+    println!("cargo:rustc-link-lib=static=hdkrs");
+    println!("cargo:rustc-link-search=native={}", out_dir.display());
 }

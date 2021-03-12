@@ -17,5 +17,4 @@ See the "Building and Installing" section in the [upper level README](../README.
 
 # Highlights
 
-In spite of this being just an example, this plugin can already be over 3x faster
-than the built-in obj loader in Houdini when tested on Linux.
+Although this plugin doesn't generate exactly the same imported geometry (using attributes instead of groups), it can already be over 2x faster than the built-in obj loader in Houdini when tested on Linux.

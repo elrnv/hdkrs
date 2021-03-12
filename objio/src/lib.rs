@@ -7,6 +7,7 @@ mod ffi {
     #[namespace = ""]
     extern "C++" {
         include!("hdkrs/src/lib.rs.h");
+        include!("rust/cxx.h");
         type GU_Detail = hdkrs::ffi::GU_Detail;
     }
     extern "Rust" {
@@ -58,7 +59,7 @@ pub fn parse_obj_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     Box::new(hdkrs::Mesh::None)
 }
 
-/// Parse a given byte array into a PolyMesh or a PointCoud and add it to the given detail.
+/// Parse a given byte array into a PolyMesh or a PointCloud and add it to the given detail.
 pub fn add_obj_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]) {
     hdkrs::ffi::add_mesh(detail, parse_obj_mesh(data));
 }

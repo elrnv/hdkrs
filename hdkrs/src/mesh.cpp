@@ -2,6 +2,7 @@
 #include <vector>
 #include <cassert>
 #include <string>
+#include <iostream>
 #include <stdexcept>
 
 #include <UT/UT_Debug.h>
@@ -520,43 +521,46 @@ void fill_str_attrib(GA_RWHandleS h, const rust::box<TupleVecStr> &arr, GA_Offse
     auto n = startoff + (arr->len()/arr->tuple_size());
     for ( GA_Offset off = startoff; off < n; ++off, ++i ) {
         for ( int j = 0; j < arr->tuple_size(); ++j ) {
-            h.set(off, j, arr->at(arr->tuple_size()*i + j).data());
+            auto rust_str = arr->at(arr->tuple_size()*i + j);
+            h.set(off, j, std::string(rust_str.begin(), rust_str.end()));
         }
     }
 }
 
 /** Retrieve attributes from the mesh using the given iterator.
  */
-void retrieve_attributes(GU_Detail *detail, GA_Offset startoff, rust::box<AttribIter> it, GA_AttributeOwner owner) {
+void retrieve_attributes(GU_Detail &detail, GA_Offset startoff, rust::box<AttribIter> it, GA_AttributeOwner owner) {
     for ( ;; ) {
         if (!it->has_next()) break;
         auto attrib = it->next();
-        auto name = UT_String(std::string(attrib->name()));
+        // SAFETY: name_str is immediately copied into a UT_String
+        auto name_str = attrib->name();
+        auto name = UT_String(std::string(name_str.begin(), name_str.end()));
         name.forceValidVariableName();
         auto type = attrib->data_type();
         if (type == DataType::I8 ) {
             auto arr = attrib->get_data_i8();
-            auto h = GA_RWHandleC(detail->addTuple(GA_STORE_INT8, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleC(detail.addTuple(GA_STORE_INT8, owner, name, arr.tuple_size));
             fill_attrib(h, arr, startoff);
         } else if (type == DataType::I32 ) {
             auto arr = attrib->get_data_i32();
-            auto h = GA_RWHandleI(detail->addTuple(GA_STORE_INT32, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleI(detail.addTuple(GA_STORE_INT32, owner, name, arr.tuple_size));
             fill_attrib(h, arr, startoff);
         } else if (type == DataType::I64 ) {
             auto arr = attrib->get_data_i64();
-            auto h = GA_RWHandleID(detail->addTuple(GA_STORE_INT64, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleID(detail.addTuple(GA_STORE_INT64, owner, name, arr.tuple_size));
             fill_attrib(h, arr, startoff);
         } else if (type == DataType::F32 ) {
             auto arr = attrib->get_data_f32();
-            auto h = GA_RWHandleF(detail->addTuple(GA_STORE_REAL32, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleF(detail.addTuple(GA_STORE_REAL32, owner, name, arr.tuple_size));
             fill_attrib(h, arr, startoff);
         } else if (type == DataType::F64 ) {
             auto arr = attrib->get_data_f64();
-            auto h = GA_RWHandleD(detail->addTuple(GA_STORE_REAL64, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleD(detail.addTuple(GA_STORE_REAL64, owner, name, arr.tuple_size));
             fill_attrib(h, arr, startoff);
         } else if (type == DataType::STR ) {
             auto box_arr = attrib->get_data_str();
-            auto h = GA_RWHandleS(detail->addTuple(GA_STORE_STRING, owner, name, box_arr->tuple_size()));
+            auto h = GA_RWHandleS(detail.addTuple(GA_STORE_STRING, owner, name, box_arr->tuple_size()));
             fill_str_attrib(h, box_arr, startoff);
         }
     }
@@ -574,32 +578,34 @@ void update_attrib(HandleType h, ArrayType arr) {
 
 /** Update attributes of the mesh using the given iterator.
  */
-void update_attributes(GU_Detail *detail, rust::box<AttribIter> it, GA_AttributeOwner owner) {
+void update_attributes(GU_Detail& detail, rust::box<AttribIter> it, GA_AttributeOwner owner) {
     for ( ;; ) {
         if ( !it->has_next() ) break;
         auto attrib = it->next();
-        auto name = UT_String(std::string(attrib->name()));
+        // SAFETY: name_str is immediately copied into a UT_String
+        auto name_str = attrib->name();
+        auto name = UT_String(std::string(name_str.begin(), name_str.end()));
         name.forceValidVariableName();
         auto type = attrib->data_type();
         if (type == DataType::I8 ) {
             auto arr = attrib->get_data_i8();
-            auto h = GA_RWHandleC(detail->addTuple(GA_STORE_INT8, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleC(detail.addTuple(GA_STORE_INT8, owner, name, arr.tuple_size));
             update_attrib(h, arr);
         } else if (type == DataType::I32 ) {
             auto arr = attrib->get_data_i32();
-            auto h = GA_RWHandleI(detail->addTuple(GA_STORE_INT32, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleI(detail.addTuple(GA_STORE_INT32, owner, name, arr.tuple_size));
             update_attrib(h, arr);
         } else if (type == DataType::I64 ) {
             auto arr = attrib->get_data_i64();
-            auto h = GA_RWHandleID(detail->addTuple(GA_STORE_INT64, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleID(detail.addTuple(GA_STORE_INT64, owner, name, arr.tuple_size));
             update_attrib(h, arr);
         } else if (type == DataType::F32 ) {
             auto arr = attrib->get_data_f32();
-            auto h = GA_RWHandleF(detail->addTuple(GA_STORE_REAL32, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleF(detail.addTuple(GA_STORE_REAL32, owner, name, arr.tuple_size));
             update_attrib(h, arr);
         } else if (type == DataType::F64 ) {
             auto arr = attrib->get_data_f64();
-            auto h = GA_RWHandleD(detail->addTuple(GA_STORE_REAL64, owner, name, arr.tuple_size));
+            auto h = GA_RWHandleD(detail.addTuple(GA_STORE_REAL64, owner, name, arr.tuple_size));
             update_attrib(h, arr);
         } // String attributes are not yet supported by updates
     }
@@ -608,7 +614,7 @@ void update_attributes(GU_Detail *detail, rust::box<AttribIter> it, GA_Attribute
 /**
  * Add a mesh to the current detail.
  */
-void add_mesh(GU_Detail* detail, rust::box<Mesh> mesh) {
+void hdkrs::add_mesh(GU_Detail& detail, rust::box<hdkrs::Mesh> mesh) {
     // No exceptions should be thrown here since we check the tag explicitly.
     switch (mesh->tag()) {
         case MeshTag::TetMesh:
@@ -627,23 +633,23 @@ void add_mesh(GU_Detail* detail, rust::box<Mesh> mesh) {
 /**
  * Add a tetmesh to the current detail
  */
-void add_tetmesh(GU_Detail* detail, rust::box<TetMesh> tetmesh) {
+void hdkrs::add_tetmesh(GU_Detail& detail, rust::box<hdkrs::TetMesh> tetmesh) {
     try {
-        GA_Offset startvtxoff = GA_Offset(detail->getNumVertexOffsets());
+        GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
         auto point_coords = tetmesh->get_point_coords();
         auto num_points = point_coords.size()/3;
         auto unsigned_indices = tetmesh->get_indices();
         if (unsigned_indices.size() > 0) {
             std::vector<int> indices(unsigned_indices.begin(), unsigned_indices.end());
 
-            GA_Offset startptoff = detail->appendPointBlock(num_points);
+            GA_Offset startptoff = detail.appendPointBlock(num_points);
             for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
                 GA_Offset ptoff = startptoff + pt_idx;
-                detail->setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
+                detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
             }
 
             GA_Offset startprimoff = GEO_PrimTetrahedron::buildBlock(
-                    detail, startptoff, detail->getNumPointOffsets(),
+                    &detail, startptoff, detail.getNumPointOffsets(),
                     indices.size()/4, indices.data());
 
             retrieve_attributes(detail, startptoff, tetmesh->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
@@ -658,16 +664,16 @@ void add_tetmesh(GU_Detail* detail, rust::box<TetMesh> tetmesh) {
 /**
  * Add a polymesh to the current detail
  */
-void add_polymesh(GU_Detail* detail, rust::box<PolyMesh> polymesh) {
-    GA_Offset startvtxoff = GA_Offset(detail->getNumVertexOffsets());
+void hdkrs::add_polymesh(GU_Detail& detail, rust::box<hdkrs::PolyMesh> polymesh) {
+    GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
     auto point_coords = polymesh->get_point_coords();
     auto num_points = point_coords.size()/3;
     auto test_indices = polymesh->get_indices();
     if (test_indices.size() > 0) {
-        GA_Offset startptoff = detail->appendPointBlock(num_points);
+        GA_Offset startptoff = detail.appendPointBlock(num_points);
         for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
             GA_Offset ptoff = startptoff + pt_idx;
-            detail->setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
+            detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
         }
 
         GEO_PolyCounts polycounts;
@@ -689,7 +695,7 @@ void add_polymesh(GU_Detail* detail, rust::box<PolyMesh> polymesh) {
         polycounts.append(prev_n, num_polys_with_same_shape); // append last set
 
         GA_Offset startprimoff = GEO_PrimPoly::buildBlock(
-                detail, startptoff, detail->getNumPointOffsets(),
+                &detail, startptoff, detail.getNumPointOffsets(),
                 polycounts, poly_pt_numbers.data());
 
         retrieve_attributes(detail, startprimoff, polymesh->attrib_iter(AttribLocation::FACE), GA_ATTRIB_PRIMITIVE);
@@ -701,15 +707,15 @@ void add_polymesh(GU_Detail* detail, rust::box<PolyMesh> polymesh) {
 /**
  * Add a ptcloud to the current detail
  */
-void add_pointcloud(GU_Detail* detail, rust::box<PointCloud> ptcloud) {
+void hdkrs::add_pointcloud(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptcloud) {
     auto point_coords = ptcloud->get_point_coords();
     auto num_points = point_coords.size()/3;
 
-    GA_Offset startptoff = detail->appendPointBlock(num_points);
+    GA_Offset startptoff = detail.appendPointBlock(num_points);
 
     for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
         GA_Offset ptoff = startptoff + pt_idx;
-        detail->setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
+        detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
     }
 
     retrieve_attributes(detail, startptoff, ptcloud->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
@@ -718,19 +724,19 @@ void add_pointcloud(GU_Detail* detail, rust::box<PointCloud> ptcloud) {
 /**
  * Update points in the detail according to what's in the ptcloud
  */
-void update_points(GU_Detail* detail, rust::box<PointCloud> ptcloud) {
+void hdkrs::update_points(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptcloud) {
     auto point_coords = ptcloud->get_point_coords();
     auto num_points = point_coords.size()/3;
 
     for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
-        GA_Offset ptoff = detail->pointOffset(pt_idx);
-        detail->setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
+        GA_Offset ptoff = detail.pointOffset(pt_idx);
+        detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
     }	
 
     update_attributes(detail, ptcloud->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
 }
 
-rust::box<TetMesh> build_tetmesh(const GU_Detail& detail) {
+rust::box<hdkrs::TetMesh> hdkrs::build_tetmesh(const GU_Detail& detail) {
     // Get tets for the solid from the first input
     std::vector<double> tet_vertices;
     tet_vertices.reserve(3*detail.getNumPointOffsets());
@@ -773,7 +779,7 @@ rust::box<TetMesh> build_tetmesh(const GU_Detail& detail) {
     return rust::box<TetMesh>::from_raw(tetmesh_ptr);
 }
 
-rust::box<PolyMesh> build_polymesh(const GU_Detail& detail) {
+rust::box<hdkrs::PolyMesh> hdkrs::build_polymesh(const GU_Detail& detail) {
     std::vector<double> poly_vertices;
     poly_vertices.reserve(3*detail.getNumPointOffsets());
     std::vector<std::size_t> poly_indices;
@@ -818,7 +824,7 @@ rust::box<PolyMesh> build_polymesh(const GU_Detail& detail) {
     return rust::box<PolyMesh>::from_raw(polymesh_ptr);
 }
 
-rust::box<PointCloud> build_pointcloud(const GU_Detail& detail) {
+rust::box<hdkrs::PointCloud> hdkrs::build_pointcloud(const GU_Detail& detail) {
     std::vector<double> vertex_coords(3*detail.getNumPoints());
     std::vector<bool> pt_grp(detail.getNumPointOffsets(), false);
 

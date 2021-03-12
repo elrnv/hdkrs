@@ -18,11 +18,11 @@ namespace hdkrs {
     * Add the given meshes into the given detail
     */
 
-    void add_mesh(GU_Detail* detail, rust::box<Mesh> mesh);
-    void add_polymesh(GU_Detail* detail, rust::box<PolyMesh> polymesh);
-    void add_tetmesh(GU_Detail* detail, rust::box<TetMesh> tetmesh);
-    void add_pointcloud(GU_Detail* detail, rust::box<PointCloud> ptcloud);
-    void update_points(GU_Detail* detail, rust::box<PointCloud> ptcloud);
+    void add_mesh(GU_Detail& detail, rust::box<Mesh> mesh);
+    void add_polymesh(GU_Detail& detail, rust::box<PolyMesh> polymesh);
+    void add_tetmesh(GU_Detail& detail, rust::box<TetMesh> tetmesh);
+    void add_pointcloud(GU_Detail& detail, rust::box<PointCloud> ptcloud);
+    void update_points(GU_Detail& detail, rust::box<PointCloud> ptcloud);
 
     rust::box<TetMesh> build_tetmesh(const GU_Detail& detail);
     rust::box<PolyMesh> build_polymesh(const GU_Detail& detail);

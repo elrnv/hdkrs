@@ -3,10 +3,6 @@ cmake_minimum_required( VERSION 3.6 )
 project( objiohdk )
 
 # Setup compile flags
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -52,7 +48,7 @@ set_property(TARGET ${library_name} PROPERTY CXX_STANDARD 17)
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.
-target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY})
+target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY} ${objiors_LIBRARY})
 
 if(WIN32)
     # Add Rust specific Windows system dependencies.
