@@ -1,7 +1,9 @@
+use std::pin::Pin;
+
 use gut::io::vtk::*;
+use gut::io::MeshExtractor;
 use gut::mesh::topology::*;
 use model::Vtk;
-use std::pin::Pin;
 
 #[cxx::bridge(namespace = "vtkio")]
 mod ffi {
@@ -130,11 +132,23 @@ pub fn tetmesh_to_vtk_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, 
     })
 }
 
-/// Helper to convert the given VTK data set into a valid `Mesh` type.
+/// Helper to convert the given VTK data set into a valid `Mesh` type representing a TetMesh.
 ///
 /// In case of failure `None` is returned.
-fn convert_vtk_polymesh_to_hr_mesh(vtk: Vtk) -> hdkrs::Mesh {
-    if let Ok(mesh) = convert_vtk_to_polymesh(vtk) {
+fn convert_vtk_to_tetmesh(vtk: &Vtk) -> hdkrs::Mesh {
+    if let Ok(mesh) = vtk.extract_tetmesh() {
+        if mesh.num_cells() > 0 {
+            return mesh.into();
+        }
+    }
+    hdkrs::Mesh::None
+}
+
+/// Helper to convert the given VTK data set into a valid `Mesh` type representing a PolyMesh.
+///
+/// In case of failure `None` is returned.
+fn convert_vtk_to_polymesh(vtk: &Vtk) -> hdkrs::Mesh {
+    if let Ok(mesh) = vtk.extract_polymesh() {
         if mesh.num_faces() > 0 {
             return mesh.into();
         }
@@ -142,42 +156,54 @@ fn convert_vtk_polymesh_to_hr_mesh(vtk: Vtk) -> hdkrs::Mesh {
     hdkrs::Mesh::None
 }
 
+/// Helper to convert the given VTK data set into a valid `Mesh` type representing a PointCloud.
+///
+/// In case of failure `None` is returned.
+fn convert_vtk_to_pointcloud(vtk: &Vtk) -> hdkrs::Mesh {
+    vtk.extract_pointcloud().ok().into()
+}
+
 /// Parse a given byte array into a Mesh and add it to the given detail.
 pub fn add_vtp_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]) {
-    hdkrs::ffi::add_mesh(detail, parse_vtp_mesh(data));
+    parse_vtp_mesh(data).add_to_detail(detail);
 }
 
 /// Parse a given byte array into a TetMesh or a PolyMesh and add it to the given detail.
 pub fn add_vtu_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]) {
-    hdkrs::ffi::add_mesh(detail, parse_vtu_mesh(data));
+    parse_vtu_mesh(data).add_to_detail(detail);
 }
 
 /// Parse a given byte array into a TetMesh or a PolyMesh and add it to the given detail.
 pub fn add_vtk_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]) {
-    hdkrs::ffi::add_mesh(detail, parse_vtk_mesh(data));
+    parse_vtk_mesh(data).add_to_detail(detail);
 }
 
 /// Parse a given byte array into a PolyMesh depending on what is stored in the
 /// buffer assuming polygon VTK format.
 pub fn parse_vtp_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
-    Box::new(if let Ok(vtk) = Vtk::parse_xml(data) {
-        convert_vtk_polymesh_to_hr_mesh(vtk)
-    } else {
-        hdkrs::Mesh::None
-    })
+    if let Ok(vtk) = Vtk::parse_xml(data) {
+        if let Ok(mesh) = vtk.extract_polymesh() {
+            if mesh.num_faces() > 0 {
+                return Box::new(mesh.into());
+            }
+        }
+        if let Ok(mesh) = vtk.extract_pointcloud() {
+            return Box::new(mesh.into());
+        }
+    }
+    Box::new(hdkrs::Mesh::None)
 }
 
 /// Parse a given byte array into a TetMesh or a PolyMesh depending on what is stored in the
 /// buffer assuming unstructured grid VTK format.
 pub fn parse_vtu_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     if let Ok(vtk) = Vtk::parse_xml(data) {
-        if let Ok(mesh) = convert_vtk_to_tetmesh(vtk.clone()) {
-            if mesh.num_cells() > 0 {
-                return Box::new(mesh.into());
-            }
-        }
-
-        return Box::new(convert_vtk_polymesh_to_hr_mesh(vtk));
+        return Box::new(
+            convert_vtk_to_tetmesh(&vtk)
+                .or_else(|| convert_vtk_to_polymesh(&vtk))
+                .or_else(|| convert_vtk_to_pointcloud(&vtk))
+                .or(hdkrs::Mesh::None),
+        );
     }
     Box::new(hdkrs::Mesh::None)
 }
@@ -186,13 +212,12 @@ pub fn parse_vtu_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
 /// buffer assuming VTK format.
 pub fn parse_vtk_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     if let Ok(vtk) = Vtk::parse_legacy_be(data) {
-        if let Ok(mesh) = convert_vtk_to_tetmesh(vtk.clone()) {
-            if mesh.num_cells() > 0 {
-                return Box::new(mesh.into());
-            }
-        }
-
-        return Box::new(convert_vtk_polymesh_to_hr_mesh(vtk));
+        return Box::new(
+            convert_vtk_to_tetmesh(&vtk)
+                .or_else(|| convert_vtk_to_polymesh(&vtk))
+                .or_else(|| convert_vtk_to_pointcloud(&vtk))
+                .or(hdkrs::Mesh::None),
+        );
     }
     Box::new(hdkrs::Mesh::None)
 }

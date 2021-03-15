@@ -10,7 +10,7 @@ name = "objiors"
 crate-type = ["staticlib"]
 
 [dependencies]
-gut = { version = "0.6", features = ["io", "serde_all"] }
+gut = { version = "0.7", features = ["io", "serde_all"] }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 

@@ -612,33 +612,14 @@ void update_attributes(GU_Detail& detail, rust::box<AttribIter> it, GA_Attribute
 }
 
 /**
- * Add a mesh to the current detail.
- */
-void hdkrs::add_mesh(GU_Detail& detail, rust::box<hdkrs::Mesh> mesh) {
-    // No exceptions should be thrown here since we check the tag explicitly.
-    switch (mesh->tag()) {
-        case MeshTag::TetMesh:
-            add_tetmesh(detail, into_tetmesh(std::move(mesh)));
-            break;
-        case MeshTag::PolyMesh:
-            add_polymesh(detail, into_polymesh(std::move(mesh)));
-            break;
-        case MeshTag::PointCloud:
-            add_pointcloud(detail, into_pointcloud(std::move(mesh)));
-            break;
-        default: break; // Do nothing
-    }
-}
-
-/**
  * Add a tetmesh to the current detail
  */
-void hdkrs::add_tetmesh(GU_Detail& detail, rust::box<hdkrs::TetMesh> tetmesh) {
+void hdkrs::add_tetmesh(GU_Detail& detail, const hdkrs::TetMesh& tetmesh) {
     try {
         GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
-        auto point_coords = tetmesh->get_point_coords();
+        auto point_coords = tetmesh.get_point_coords();
         auto num_points = point_coords.size()/3;
-        auto unsigned_indices = tetmesh->get_indices();
+        auto unsigned_indices = tetmesh.get_indices();
         if (unsigned_indices.size() > 0) {
             std::vector<int> indices(unsigned_indices.begin(), unsigned_indices.end());
 
@@ -652,9 +633,9 @@ void hdkrs::add_tetmesh(GU_Detail& detail, rust::box<hdkrs::TetMesh> tetmesh) {
                     &detail, startptoff, detail.getNumPointOffsets(),
                     indices.size()/4, indices.data());
 
-            retrieve_attributes(detail, startptoff, tetmesh->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
-            retrieve_attributes(detail, startprimoff, tetmesh->attrib_iter(AttribLocation::CELL), GA_ATTRIB_PRIMITIVE);
-            retrieve_attributes(detail, startvtxoff, tetmesh->attrib_iter(AttribLocation::CELLVERTEX), GA_ATTRIB_VERTEX);
+            retrieve_attributes(detail, startptoff, tetmesh.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+            retrieve_attributes(detail, startprimoff, tetmesh.attrib_iter(AttribLocation::CELL), GA_ATTRIB_PRIMITIVE);
+            retrieve_attributes(detail, startvtxoff, tetmesh.attrib_iter(AttribLocation::CELLVERTEX), GA_ATTRIB_VERTEX);
         }
     } catch (const rust::Error &e) {
         UT_ASSERT_MSG(false, "Attribute error");
@@ -664,11 +645,11 @@ void hdkrs::add_tetmesh(GU_Detail& detail, rust::box<hdkrs::TetMesh> tetmesh) {
 /**
  * Add a polymesh to the current detail
  */
-void hdkrs::add_polymesh(GU_Detail& detail, rust::box<hdkrs::PolyMesh> polymesh) {
+void hdkrs::add_polymesh(GU_Detail& detail, const hdkrs::PolyMesh& polymesh) {
     GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
-    auto point_coords = polymesh->get_point_coords();
+    auto point_coords = polymesh.get_point_coords();
     auto num_points = point_coords.size()/3;
-    auto test_indices = polymesh->get_indices();
+    auto test_indices = polymesh.get_indices();
     if (test_indices.size() > 0) {
         GA_Offset startptoff = detail.appendPointBlock(num_points);
         for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
@@ -698,17 +679,17 @@ void hdkrs::add_polymesh(GU_Detail& detail, rust::box<hdkrs::PolyMesh> polymesh)
                 &detail, startptoff, detail.getNumPointOffsets(),
                 polycounts, poly_pt_numbers.data());
 
-        retrieve_attributes(detail, startprimoff, polymesh->attrib_iter(AttribLocation::FACE), GA_ATTRIB_PRIMITIVE);
-        retrieve_attributes(detail, startvtxoff, polymesh->attrib_iter(AttribLocation::FACEVERTEX), GA_ATTRIB_VERTEX);
-        retrieve_attributes(detail, startptoff, polymesh->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+        retrieve_attributes(detail, startprimoff, polymesh.attrib_iter(AttribLocation::FACE), GA_ATTRIB_PRIMITIVE);
+        retrieve_attributes(detail, startvtxoff, polymesh.attrib_iter(AttribLocation::FACEVERTEX), GA_ATTRIB_VERTEX);
+        retrieve_attributes(detail, startptoff, polymesh.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
     }
 }
 
 /**
  * Add a ptcloud to the current detail
  */
-void hdkrs::add_pointcloud(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptcloud) {
-    auto point_coords = ptcloud->get_point_coords();
+void hdkrs::add_pointcloud(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) {
+    auto point_coords = ptcloud.get_point_coords();
     auto num_points = point_coords.size()/3;
 
     GA_Offset startptoff = detail.appendPointBlock(num_points);
@@ -718,14 +699,14 @@ void hdkrs::add_pointcloud(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptclo
         detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
     }
 
-    retrieve_attributes(detail, startptoff, ptcloud->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+    retrieve_attributes(detail, startptoff, ptcloud.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
 }
 
 /**
  * Update points in the detail according to what's in the ptcloud
  */
-void hdkrs::update_points(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptcloud) {
-    auto point_coords = ptcloud->get_point_coords();
+void hdkrs::update_points(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) {
+    auto point_coords = ptcloud.get_point_coords();
     auto num_points = point_coords.size()/3;
 
     for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
@@ -733,7 +714,7 @@ void hdkrs::update_points(GU_Detail& detail, rust::box<hdkrs::PointCloud> ptclou
         detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
     }	
 
-    update_attributes(detail, ptcloud->attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+    update_attributes(detail, ptcloud.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
 }
 
 rust::box<hdkrs::TetMesh> hdkrs::build_tetmesh(const GU_Detail& detail) {

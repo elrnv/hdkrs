@@ -3,8 +3,6 @@ use cxx_build::CFG;
 fn main() {
     CFG.include_prefix = "objio";
     let build = cxx_build::bridge("src/lib.rs");
-    //.file("../target/cxxbridge/hdkrs/src/lib.rs.cc")
-    //    .compile("cxxbridge-objiohdk");
     cmake::Config::new(".")
         .no_build_target(true)
         .init_c_cfg(build.clone())

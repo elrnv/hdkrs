@@ -1,8 +1,9 @@
-use gut::mesh::{self, attrib, topology as topo, Attrib, VertexPositions};
-use hashbrown::hash_map::Iter;
 use std::any::TypeId;
 use std::iter::Peekable;
 use std::sync::Arc;
+
+use gut::mesh::{self, attrib, topology as topo, Attrib, VertexPositions};
+use hashbrown::hash_map::Iter;
 
 pub mod interop;
 
@@ -23,11 +24,10 @@ pub mod ffi {
     }
 
     unsafe extern "C++" {
-        fn add_mesh(detail: Pin<&mut GU_Detail>, mesh: Box<Mesh>);
-        fn add_polymesh(detail: Pin<&mut GU_Detail>, polymesh: Box<PolyMesh>);
-        fn add_tetmesh(detail: Pin<&mut GU_Detail>, tetmesh: Box<TetMesh>);
-        fn add_pointcloud(detail: Pin<&mut GU_Detail>, ptcloud: Box<PointCloud>);
-        fn update_points(detail: Pin<&mut GU_Detail>, ptcloud: Box<PointCloud>);
+        fn add_polymesh(detail: Pin<&mut GU_Detail>, polymesh: &PolyMesh);
+        fn add_tetmesh(detail: Pin<&mut GU_Detail>, tetmesh: &TetMesh);
+        fn add_pointcloud(detail: Pin<&mut GU_Detail>, ptcloud: &PointCloud);
+        fn update_points(detail: Pin<&mut GU_Detail>, ptcloud: &PointCloud);
 
         fn build_polymesh(detail: &GU_Detail) -> Result<Box<PolyMesh>>;
         fn build_tetmesh(detail: &GU_Detail) -> Result<Box<TetMesh>>;
@@ -209,6 +209,7 @@ pub mod ffi {
         fn is_polymesh(&self) -> bool;
         fn is_pointcloud(&self) -> bool;
         fn tag(&self) -> MeshTag;
+        fn add_to_detail(&self, detail: Pin<&mut GU_Detail>);
         fn into_tetmesh(mesh: Box<Mesh>) -> Box<TetMesh>;
         fn into_polymesh(mesh: Box<Mesh>) -> Box<PolyMesh>;
         fn into_pointcloud(mesh: Box<Mesh>) -> Box<PointCloud>;
@@ -292,7 +293,7 @@ unsafe impl Send for InterruptChecker {}
 unsafe impl Sync for InterruptChecker {}
 
 /// A Rust polygon mesh struct.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct PolyMesh(pub mesh::PolyMesh<f64>);
 
@@ -303,7 +304,7 @@ impl From<mesh::PolyMesh<f64>> for PolyMesh {
 }
 
 /// A Rust tetmesh struct.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct TetMesh(pub mesh::TetMesh<f64>);
 
@@ -314,7 +315,7 @@ impl From<mesh::TetMesh<f64>> for TetMesh {
 }
 
 /// A Rust pointcloud struct.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct PointCloud(pub mesh::PointCloud<f64>);
 
@@ -1226,12 +1227,18 @@ impl TetMesh {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Mesh {
     TetMesh(TetMesh),
     PolyMesh(PolyMesh),
     PointCloud(PointCloud),
     None,
+}
+
+impl<M: Into<Mesh>> From<Option<M>> for Mesh {
+    fn from(m: Option<M>) -> Self {
+        m.map(|x| x.into()).unwrap_or(Mesh::None)
+    }
 }
 
 impl From<mesh::TetMesh<f64>> for Mesh {
@@ -1271,6 +1278,29 @@ impl From<PointCloud> for Mesh {
 }
 
 impl Mesh {
+    #[inline]
+    pub fn or_else<F: FnOnce() -> Mesh>(self, f: F) -> Mesh {
+        match self {
+            Mesh::None => f(),
+            _ => self,
+        }
+    }
+    #[inline]
+    pub fn or(self, b: Mesh) -> Mesh {
+        match self {
+            Mesh::None => b,
+            _ => self,
+        }
+    }
+    /// Add this mesh to the given detail.
+    pub fn add_to_detail(&self, detail: std::pin::Pin<&mut GU_Detail>) {
+        match self {
+            Mesh::TetMesh(m) => add_tetmesh(detail, m),
+            Mesh::PolyMesh(m) => add_polymesh(detail, m),
+            Mesh::PointCloud(m) => add_pointcloud(detail, m),
+            Mesh::None => {}
+        }
+    }
     pub fn is_tetmesh(&self) -> bool {
         matches!(self, Mesh::TetMesh(_))
     }

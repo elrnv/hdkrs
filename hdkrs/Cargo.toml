@@ -6,9 +6,9 @@ edition = "2018"
 links = "hdkrs"
 
 [dependencies]
-gut = { version = "0.6", features = ["io", "serde_all"] }
+gut = { version = "0.7", features = ["io", "serde_all"] }
 bytemuck = "1.5"
-hashbrown = "0.9"
+hashbrown = "0.11"
 cxx = "1.0"
 libc = "0.2"
 

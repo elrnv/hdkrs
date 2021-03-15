@@ -1,6 +1,8 @@
-use gut::io::obj::*;
-use gut::mesh::topology::*;
 use std::pin::Pin;
+
+use gut::io::obj::*;
+use gut::io::MeshExtractor;
+use gut::mesh::topology::*;
 
 #[cxx::bridge(namespace = "objio")]
 mod ffi {
@@ -50,10 +52,13 @@ fn write_obj(obj: ObjData) -> Vec<u8> {
 /// Parse a given byte array into a PolyMesh assuming obj format.
 pub fn parse_obj_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     if let Ok(obj_data) = ObjData::load_buf_with_config(data, LoadConfig { strict: false }) {
-        if let Ok(mesh) = convert_obj_to_polymesh(obj_data) {
+        if let Ok(mesh) = obj_data.extract_polymesh() {
             if mesh.num_faces() > 0 {
                 return Box::new(mesh.into());
             }
+        }
+        if let Ok(mesh) = obj_data.extract_pointcloud() {
+            return Box::new(mesh.into());
         }
     }
     Box::new(hdkrs::Mesh::None)
@@ -61,5 +66,5 @@ pub fn parse_obj_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
 
 /// Parse a given byte array into a PolyMesh or a PointCloud and add it to the given detail.
 pub fn add_obj_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]) {
-    hdkrs::ffi::add_mesh(detail, parse_obj_mesh(data));
+    parse_obj_mesh(data).add_to_detail(detail);
 }
