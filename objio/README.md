@@ -13,7 +13,7 @@ crate to load and save the `.obj` files. The [`gut`](https://crates.io/crates/gu
 
 ## Building
 
-See the "Building and Installing" section in the [upper level README](../README.md) for instructions.
+See the "Building and Installing" section in the [`hdkrs` README](../hdkrs/README.md) for instructions.
 
 # Highlights
 

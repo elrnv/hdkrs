@@ -4,4 +4,4 @@ This crate implements a plugin for loading and saving [VTK](https://vtk.org) fil
 
 ## Building
 
-See the "Building and Installing" section in the [upper level README](../README.md) for instructions.
+See the "Building and Installing" section in the [`hdkrs` README](../hdkrs/README.md) for instructions.
