@@ -24,13 +24,11 @@ endif()
 
 set( library_name hdkrs )
 
-file(READ "${CMAKE_BINARY_DIR}/rust/out_dir_hdkrs.txt" hdkrs_OUT_DIR)
-
 # Add a library and its source files.
 add_library( ${library_name} STATIC
   src/mesh.cpp
   src/interrupt.cpp
-  "${hdkrs_OUT_DIR}/cxxbridge/hdkrs/src/lib.rs.cc"
+  "${CMAKE_BINARY_DIR}/../cxxbridge/hdkrs/src/lib.rs.cc"
 )
 
 set_property(TARGET ${library_name} PROPERTY CXX_STANDARD 17)
