@@ -87,7 +87,7 @@ Changes to `cmake` are upstreamed in https://github.com/alexcrichton/cmake-rs/pu
    find_package( Houdini REQUIRED )
 
    # Add a library and its source files. Inlude all cxxbridge sources here.
-   add_library( cxxbridge STATIC ../target/cxxbridge/<crate-name>/src/lib.rs.cc)
+   add_library( cxxbridge STATIC "${CMAKE_BINARY_DIR}/../cxxbridge/sources/<crate-name>/src/lib.rs.cc")
 
    # Link against the Houdini libraries, and add required include directories and
    # compile definitions.

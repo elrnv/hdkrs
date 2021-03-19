@@ -19,7 +19,7 @@ find_package( Houdini REQUIRED )
 set( library_name cxxbridge-objiohdk )
 
 # Add a library and its source files.
-add_library( ${library_name} STATIC ../target/cxxbridge/objio/src/lib.rs.cc)
+add_library( ${library_name} STATIC "${CMAKE_BINARY_DIR}/../cxxbridge/sources/objio/src/lib.rs.cc")
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.

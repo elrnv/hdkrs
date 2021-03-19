@@ -28,7 +28,7 @@ set( library_name hdkrs )
 add_library( ${library_name} STATIC
   src/mesh.cpp
   src/interrupt.cpp
-  "${CMAKE_BINARY_DIR}/../cxxbridge/hdkrs/src/lib.rs.cc"
+  "${CMAKE_BINARY_DIR}/../cxxbridge/sources/hdkrs/src/lib.rs.cc"
 )
 
 set_property(TARGET ${library_name} PROPERTY CXX_STANDARD 17)
