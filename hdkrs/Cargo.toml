@@ -2,8 +2,16 @@
 name = "hdkrs"
 version = "0.1.0"
 authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "A rust interface for the Houdini Development Kit (HDK)"
+readme = "README.md"
 edition = "2018"
 links = "hdkrs"
+
+homepage = "https://github.com/elrnv/hdkrs"
+repository = "https://github.com/elrnv/hdkrs"
+
+keywords = ["hdk", "plugin", "houdini", "sidefx"]
 
 [dependencies]
 gut = { version = "0.7", features = ["io", "serde_all"] }
