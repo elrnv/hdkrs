@@ -1,4 +1,4 @@
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     set( vtkio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/debug" )
 else()
     set( vtkio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/release" )

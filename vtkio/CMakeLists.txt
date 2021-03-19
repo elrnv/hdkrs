@@ -23,7 +23,7 @@ add_library( ${library_name} STATIC ../target/cxxbridge/vtkio/src/lib.rs.cc)
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.
-target_link_libraries( ${library_name} Houdini )
+target_link_libraries( ${library_name} PUBLIC Houdini )
 
 # Sets several common target properties, such as the library's output directory.
 houdini_configure_target( ${library_name} INSTDIR ${CMAKE_INSTALL_PREFIX} LIB_PREFIX lib)

@@ -18,7 +18,7 @@ list( APPEND CMAKE_PREFIX_PATH "$ENV{HFS}/toolkit/cmake" )
 find_package( Houdini REQUIRED )
 
 # Find the rust build of the vtkio library.
-list(APPEND CMAKE_PREFIX_PATH ".")
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR})
 
 find_package( vtkiors REQUIRED )
 
@@ -47,7 +47,7 @@ set_property( TARGET ${library_name} PROPERTY CXX_STANDARD 17 )
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.
-target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY} ${vtkiors_LIBRARY})
+target_link_libraries( ${library_name} PUBLIC Houdini ${MACOS_SECURITY} PRIVATE ${vtkiors_LIBRARY})
 
 if(WIN32)
     # Add Rust specific Windows system dependencies.
