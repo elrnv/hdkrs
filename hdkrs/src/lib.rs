@@ -181,7 +181,7 @@ pub mod ffi {
     }
     #[rustfmt::skip]
     extern "Rust" {
-        type AttribIter<'a>;
+        type AttribIter;
         fn has_next(&mut self) -> bool;
         unsafe fn next<'a>(self: &mut AttribIter<'a>) -> Result<Box<Attribute<'a>>>;
     }
