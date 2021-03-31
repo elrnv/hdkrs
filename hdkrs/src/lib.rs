@@ -37,7 +37,7 @@ pub mod ffi {
         type PolyMesh;
         fn get_point_coords(&self) -> Vec<f64>;
         fn get_indices(&self) -> Vec<usize>;
-        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter>;
+        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>>;
         fn add_attrib_f32(
             &mut self,
             loc: AttribLocation,
@@ -86,7 +86,7 @@ pub mod ffi {
         type TetMesh;
         fn get_point_coords(&self) -> Vec<f64>;
         fn get_indices(&self) -> Vec<usize>;
-        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter>;
+        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>>;
         fn add_attrib_f32(
             &mut self,
             loc: AttribLocation,
@@ -134,7 +134,7 @@ pub mod ffi {
     extern "Rust" {
         type PointCloud;
         fn get_point_coords(&self) -> Vec<f64>;
-        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter>;
+        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>>;
         fn add_attrib_f32(
             &mut self,
             loc: AttribLocation,
@@ -181,7 +181,7 @@ pub mod ffi {
     }
     #[rustfmt::skip]
     extern "Rust" {
-        type AttribIter;
+        type AttribIter<'a>;
         fn has_next(&mut self) -> bool;
         unsafe fn next<'a>(self: &mut AttribIter<'a>) -> Result<Box<Attribute<'a>>>;
     }
