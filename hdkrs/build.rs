@@ -71,6 +71,12 @@ fn main() {
     println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
 
     // Link against the cxxbridge
-    println!("cargo:rustc-link-lib=static=hdkrs");
+    let target_os = env::var("CARGO_CFG_TARGET_FAMILY").unwrap();
+    if target_os == "windows" {
+        // For some reason windows doesn't automatically recognize the lib prefix.
+        println!("cargo:rustc-link-lib=static=libhdkrs");
+    } else {
+        println!("cargo:rustc-link-lib=static=hdkrs");
+    }
     println!("cargo:rustc-link-search=native={}", out_dir.display());
 }

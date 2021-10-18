@@ -39,7 +39,7 @@ target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY})
 
 if(WIN32)
     # Add Rust specific Windows system dependencies.
-    target_link_libraries( ${library_name} PRIVATE Ws2_32 userenv )
+    target_link_libraries( ${library_name} Ws2_32 userenv )
 endif(WIN32)
 
 # Include ${CMAKE_CURRENT_BINARY_DIR} for the generated header.
