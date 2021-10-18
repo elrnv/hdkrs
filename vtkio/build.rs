@@ -12,6 +12,12 @@ fn main() {
     let out_dir = std::env::var("OUT_DIR").unwrap();
 
     println!("cargo:rerun-if-changed=src/lib.rs");
-    println!("cargo:rustc-link-lib=static=cxxbridge-vtkiohdk");
+    let target_os = env::var("CARGO_CFG_TARGET_FAMILY").unwrap();
+    if target_os == "windows" {
+        // For some reason linking on windows doesn't recognize the lib prefix automatically.
+        println!("cargo:rustc-link-lib=static=libcxxbridge-vtkiohdk");
+    } else {
+        println!("cargo:rustc-link-lib=static=cxxbridge-vtkiohdk");
+    }
     println!("cargo:rustc-link-search=native={}", out_dir);
 }

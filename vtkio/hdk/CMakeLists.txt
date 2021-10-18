@@ -51,7 +51,7 @@ target_link_libraries( ${library_name} PUBLIC Houdini ${MACOS_SECURITY} PRIVATE 
 
 if(WIN32)
     # Add Rust specific Windows system dependencies.
-    target_link_libraries( ${library_name} PRIVATE Ws2_32 userenv )
+    target_link_libraries( ${library_name} Ws2_32 userenv bcrypt )
 endif(WIN32)
 
 target_include_directories( ${library_name} PRIVATE ${vtkiors_INCLUDE_DIRS} ${hdkrs_INCLUDE_DIRS} )
