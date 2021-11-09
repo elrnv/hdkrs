@@ -48,7 +48,7 @@ set_property(TARGET ${library_name} PROPERTY CXX_STANDARD 17)
 
 # Link against the Houdini libraries, and add required include directories and
 # compile definitions.
-target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY} ${objiors_LIBRARY})
+target_link_libraries( ${library_name} Houdini ${MACOS_SECURITY} ${objiors_LIBRARIES})
 
 if(WIN32)
     # Add Rust specific Windows system dependencies.
