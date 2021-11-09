@@ -65,8 +65,8 @@ fn main() {
         .init_cxx_cfg(build)
         .build();
 
-    println!("cargo:rerun-if-changed=src/*");
-    println!("cargo:rerun-if-changed=include/*");
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=include");
     println!("cargo:rerun-if-changed=CMakeLists.txt");
     println!("cargo:rerun-if-changed=hdkrsConfig.cmake");
 
