@@ -2,8 +2,8 @@ use std::any::TypeId;
 use std::iter::Peekable;
 use std::sync::Arc;
 
-use gut::mesh::{self, attrib, topology as topo, Attrib, VertexPositions};
 use hashbrown::hash_map::Iter;
+use meshx::{attrib, attrib::Attrib, mesh, mesh::topology as topo, mesh::VertexPositions};
 
 pub mod interop;
 
@@ -27,11 +27,65 @@ pub mod ffi {
         fn add_polymesh(detail: Pin<&mut GU_Detail>, polymesh: &PolyMesh);
         fn add_tetmesh(detail: Pin<&mut GU_Detail>, tetmesh: &TetMesh);
         fn add_pointcloud(detail: Pin<&mut GU_Detail>, ptcloud: &PointCloud);
+        fn add_unstructured_mesh(detail: Pin<&mut GU_Detail>, mesh: &UnstructuredMesh);
         fn update_points(detail: Pin<&mut GU_Detail>, ptcloud: &PointCloud);
 
         fn build_polymesh(detail: &GU_Detail) -> Result<Box<PolyMesh>>;
         fn build_tetmesh(detail: &GU_Detail) -> Result<Box<TetMesh>>;
         fn build_pointcloud(detail: &GU_Detail) -> Result<Box<PointCloud>>;
+        fn build_unstructured_mesh(detail: &GU_Detail) -> Result<Box<UnstructuredMesh>>;
+    }
+    extern "Rust" {
+        type UnstructuredMesh;
+        fn get_point_coords(&self) -> Vec<f64>;
+        fn get_indices(&self) -> Vec<usize>;
+        fn get_counts(&self) -> Vec<usize>;
+        fn get_sizes(&self) -> Vec<usize>;
+        fn get_cell_types(&self) -> Vec<CellType>;
+        fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>>;
+        fn add_attrib_f32(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            data: &[f32],
+        );
+        fn add_attrib_f64(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            data: &[f64],
+        );
+        fn add_attrib_i8(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            data: &[i8],
+        );
+        fn add_attrib_i32(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            data: &[i32],
+        );
+        fn add_attrib_i64(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            data: &[i64],
+        );
+        fn add_attrib_str(
+            &mut self,
+            loc: AttribLocation,
+            name: &str,
+            tuple_size: usize,
+            strings: &[&str],
+            data: &[i64],
+        );
     }
     extern "Rust" {
         type PolyMesh;
@@ -208,16 +262,23 @@ pub mod ffi {
         fn is_tetmesh(&self) -> bool;
         fn is_polymesh(&self) -> bool;
         fn is_pointcloud(&self) -> bool;
+        fn is_unstructured_mesh(&self) -> bool;
         fn tag(&self) -> MeshTag;
         fn add_to_detail(&self, detail: Pin<&mut GU_Detail>);
         fn into_tetmesh(mesh: Box<Mesh>) -> Box<TetMesh>;
         fn into_polymesh(mesh: Box<Mesh>) -> Box<PolyMesh>;
         fn into_pointcloud(mesh: Box<Mesh>) -> Box<PointCloud>;
+        fn into_unstructured_mesh(mesh: Box<Mesh>) -> Box<UnstructuredMesh>;
     }
     extern "Rust" {
         fn make_pointcloud(coords: &[f64]) -> Box<PointCloud>;
         fn make_polymesh(coords: &[f64], indices: &[usize]) -> Box<PolyMesh>;
         fn make_tetmesh(coords: &[f64], indices: &[usize]) -> Box<TetMesh>;
+        fn make_unstructured_mesh(
+            coords: &[f64],
+            indices: &[usize],
+            types: &[CellType],
+        ) -> Box<UnstructuredMesh>;
     }
 
     #[derive(Debug)]
@@ -283,7 +344,15 @@ pub mod ffi {
         TetMesh,
         PolyMesh,
         PointCloud,
+        UnstructuredMesh,
         None,
+    }
+
+    /// The type of cell stored in an unstructured mesh.
+    #[derive(Debug)]
+    pub enum CellType {
+        Triangle,
+        Tetrahedron,
     }
 }
 
@@ -291,6 +360,35 @@ use self::ffi::*;
 
 unsafe impl Send for InterruptChecker {}
 unsafe impl Sync for InterruptChecker {}
+
+impl From<mesh::CellType> for CellType {
+    fn from(ct: mesh::CellType) -> Self {
+        match ct {
+            mesh::CellType::Triangle => CellType::Triangle,
+            mesh::CellType::Tetrahedron => CellType::Tetrahedron,
+        }
+    }
+}
+
+impl From<CellType> for mesh::CellType {
+    fn from(ct: CellType) -> Self {
+        match ct {
+            CellType::Triangle => mesh::CellType::Triangle,
+            _ => mesh::CellType::Tetrahedron,
+        }
+    }
+}
+
+/// A Rust unstructuerd mesh struct.
+#[derive(Clone, PartialEq, Debug)]
+#[repr(transparent)]
+pub struct UnstructuredMesh(pub mesh::Mesh<f64>);
+
+impl From<mesh::Mesh<f64>> for UnstructuredMesh {
+    fn from(m: mesh::Mesh<f64>) -> Self {
+        UnstructuredMesh(m)
+    }
+}
 
 /// A Rust polygon mesh struct.
 #[derive(Clone, PartialEq, Debug)]
@@ -382,19 +480,64 @@ impl PointCloud {
     }
 }
 
+impl UnstructuredMesh {
+    pub fn get_point_coords(&self) -> Vec<f64> {
+        bytemuck::cast_slice(self.0.vertex_positions()).to_vec()
+    }
+
+    pub fn get_indices(&self) -> Vec<usize> {
+        self.0.indices.data.clone()
+    }
+
+    pub fn get_counts(&self) -> Vec<usize> {
+        self.0.indices.chunks.chunk_offsets.sizes().collect()
+    }
+
+    pub fn get_sizes(&self) -> Vec<usize> {
+        self.0
+            .indices
+            .chunks
+            .chunk_offsets
+            .sizes()
+            .zip(self.0.indices.chunks.offsets.sizes())
+            .map(|(num_elements, num_indices)| num_indices / num_elements)
+            .collect()
+    }
+
+    // Returns unique cell types per block of cells.
+    pub fn get_cell_types(&self) -> Vec<CellType> {
+        self.0.types.iter().cloned().map(Into::into).collect()
+    }
+
+    pub fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>> {
+        Box::new(match loc {
+            AttribLocation::VERTEX => {
+                AttribIter::Vertex(self.0.attrib_dict::<topo::VertexIndex>().iter().peekable())
+            }
+            AttribLocation::CELL => {
+                AttribIter::Cell(self.0.attrib_dict::<topo::CellIndex>().iter().peekable())
+            }
+            AttribLocation::CELLVERTEX => AttribIter::CellVertex(
+                self.0
+                    .attrib_dict::<topo::CellVertexIndex>()
+                    .iter()
+                    .peekable(),
+            ),
+            _ => AttribIter::None,
+        })
+    }
+}
+
 impl TetMesh {
     pub fn get_point_coords(&self) -> Vec<f64> {
         bytemuck::cast_slice(self.0.vertex_positions()).to_vec()
     }
     pub fn get_indices(&self) -> Vec<usize> {
-        let mut indices = Vec::new();
-        for cell in self.0.cell_iter() {
-            for &idx in cell.iter() {
-                indices.push(idx);
-            }
-        }
-
-        indices
+        self.0
+            .indices
+            .iter()
+            .flat_map(|cell| cell.iter().cloned())
+            .collect()
     }
 
     pub fn attrib_iter(&self, loc: AttribLocation) -> Box<AttribIter<'_>> {
@@ -766,6 +909,31 @@ pub fn make_pointcloud(coords: &[f64]) -> Box<PointCloud> {
     Box::new(PointCloud(mesh::PointCloud::new(verts)))
 }
 
+pub fn make_unstructured_mesh(
+    coords: &[f64],
+    indices: &[usize],
+    types: &[CellType],
+) -> Box<UnstructuredMesh> {
+    use std::convert::TryInto;
+    // check invariants
+    assert!(
+        coords.len() % 3 == 0,
+        "Given coordinate array size is not a multiple of 3."
+    );
+
+    let indices = indices;
+    let verts: Vec<[f64; 3]> = coords
+        .chunks_exact(3)
+        .map(|chunk| chunk.try_into().unwrap())
+        .collect();
+
+    Box::new(UnstructuredMesh(mesh::Mesh::from_cells_with_type(
+        verts,
+        indices,
+        |i| types[i].into(),
+    )))
+}
+
 macro_rules! make_mesh_impl {
     ($hr_mesh:ident, $mesh_ty:ident, $coords:ident, $convert:expr) => {{
         use std::convert::TryInto;
@@ -833,6 +1001,11 @@ impl From<attrib::Error> for Error {
 }
 
 macro_rules! impl_add_attrib {
+    (_impl UnstructuredMesh, $data_type:ty, $mesh:ident,
+     $data:ident, $name:ident, $loc:ident) => {
+        let vec = $data.to_vec();
+        impl_add_attrib!(_impl_volume $mesh, $loc, $name, vec);
+    };
     (_impl PointCloud, $data_type:ty, $mesh:ident,
      $data:ident, $name:ident, $loc:ident) => {
         let vec = $data.to_vec();
@@ -846,6 +1019,11 @@ macro_rules! impl_add_attrib {
     (_impl TetMesh, $data_type:ty, $mesh:ident,
      $data:ident, $name:ident, $loc:ident) => {
         let vec = $data.to_vec();
+        impl_add_attrib!(_impl_volume $mesh, $loc, $name, vec);
+    };
+    (_impl UnstructuredMesh, $data_type:ty, $tuple_size:expr, $mesh:ident,
+     $data:ident, $name:ident, $loc:ident) => {
+        let vec = bytemuck::cast_slice::<_, [$data_type; $tuple_size]>($data).to_vec();
         impl_add_attrib!(_impl_volume $mesh, $loc, $name, vec);
     };
     (_impl PointCloud, $data_type:ty, $tuple_size:expr, $mesh:ident,
@@ -867,7 +1045,7 @@ macro_rules! impl_add_attrib {
     (_impl_points $mesh:ident, $loc:ident, $name:ident, $vec:ident) => {
         {
             if let AttribLocation::VERTEX = $loc {
-                if let Err(error) = $mesh.0.add_attrib_data::<_,topo::VertexIndex>($name, $vec) {
+                if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::VertexIndex>($name, $vec) {
                     println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                 }
             }
@@ -879,17 +1057,17 @@ macro_rules! impl_add_attrib {
         {
             match $loc {
                 AttribLocation::VERTEX => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::VertexIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::VertexIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
                 AttribLocation::FACE => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::FaceIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::FaceIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
                 AttribLocation::FACEVERTEX => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::FaceVertexIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::FaceVertexIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
@@ -897,22 +1075,23 @@ macro_rules! impl_add_attrib {
             };
         }
     };
-    // Volume type meshes like tet and hex meshes have cell attributes.
+    // Volume type meshes like tet and hex meshes have cell attributes. This is
+    // also true for mixed meshes where faces are treated as cells.
     (_impl_volume $mesh:ident, $loc:ident, $name:ident, $vec:ident) => {
         {
             match $loc {
                 AttribLocation::VERTEX => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::VertexIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::VertexIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
                 AttribLocation::CELL => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::CellIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::CellIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
                 AttribLocation::CELLVERTEX => {
-                    if let Err(error) = $mesh.0.add_attrib_data::<_,topo::CellVertexIndex>($name, $vec) {
+                    if let Err(error) = $mesh.0.insert_attrib_data::<_,topo::CellVertexIndex>($name, $vec) {
                         println!("Warning: failed to add attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error);
                     }
                 },
@@ -948,7 +1127,7 @@ macro_rules! impl_add_attrib {
     (_impl_str_points $mesh:ident, $loc:ident, $name:ident, $update_fn:expr) => {
         {
             if let AttribLocation::VERTEX = $loc {
-                $mesh.0.add_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
+                $mesh.0.insert_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
                     .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                     .map_err(Error::from)
             } else {
@@ -962,17 +1141,17 @@ macro_rules! impl_add_attrib {
         {
             match $loc {
                 AttribLocation::VERTEX => {
-                    $mesh.0.add_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
                 AttribLocation::FACE => {
-                    $mesh.0.add_indirect_attrib::<_, topo::FaceIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::FaceIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
                 AttribLocation::FACEVERTEX => {
-                    $mesh.0.add_indirect_attrib::<_, topo::FaceVertexIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::FaceVertexIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
@@ -985,17 +1164,17 @@ macro_rules! impl_add_attrib {
         {
             match $loc {
                 AttribLocation::VERTEX => {
-                    $mesh.0.add_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::VertexIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
                 AttribLocation::CELL => {
-                    $mesh.0.add_indirect_attrib::<_, topo::CellIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::CellIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
                 AttribLocation::CELLVERTEX => {
-                    $mesh.0.add_indirect_attrib::<_, topo::CellVertexIndex>($name, String::new())
+                    $mesh.0.insert_indirect_attrib::<_, topo::CellVertexIndex>($name, String::new())
                         .and_then(|(attrib, cache)| { attrib.indirect_update_with($update_fn, cache)?; Ok(()) })
                         .map_err(Error::from)
                 },
@@ -1004,6 +1183,9 @@ macro_rules! impl_add_attrib {
         }
     };
     // Helpers for the implementation for string attributes below.
+    (_impl_str UnstructuredMesh, $mesh:ident, $loc:ident, $name:ident, $update_fn:expr) => {
+        impl_add_attrib!(_impl_str_volume $mesh, $loc, $name, $update_fn)
+    };
     (_impl_str PointCloud, $mesh:ident, $loc:ident, $name:ident, $update_fn:expr) => {
         impl_add_attrib!(_impl_str_points $mesh, $loc, $name, $update_fn)
     };
@@ -1037,6 +1219,68 @@ macro_rules! impl_add_attrib {
                 println!("Warning: failed to add string attribute \"{}\" at {:?}, with error: {:?}", $name, $loc, error),
             _ => {}
         }
+    }
+}
+
+impl UnstructuredMesh {
+    pub fn add_attrib_f32(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        data: &[f32],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, data: f32);
+    }
+
+    pub fn add_attrib_f64(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        data: &[f64],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, data: f64);
+    }
+
+    pub fn add_attrib_i8(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        data: &[i8],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, data: i8);
+    }
+
+    pub fn add_attrib_i32(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        data: &[i32],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, data: i32);
+    }
+
+    pub fn add_attrib_i64(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        data: &[i64],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, data: i64);
+    }
+    pub fn add_attrib_str(
+        &mut self,
+        loc: AttribLocation,
+        name: &str,
+        tuple_size: usize,
+        strings: &[&str],
+        data: &[i64],
+    ) {
+        impl_add_attrib!(UnstructuredMesh, self, loc, name, tuple_size, strings, data);
     }
 }
 
@@ -1232,12 +1476,19 @@ pub enum Mesh {
     TetMesh(TetMesh),
     PolyMesh(PolyMesh),
     PointCloud(PointCloud),
+    UnstructuredMesh(UnstructuredMesh),
     None,
 }
 
 impl<M: Into<Mesh>> From<Option<M>> for Mesh {
     fn from(m: Option<M>) -> Self {
         m.map(|x| x.into()).unwrap_or(Mesh::None)
+    }
+}
+
+impl From<mesh::Mesh<f64>> for Mesh {
+    fn from(m: mesh::Mesh<f64>) -> Self {
+        Mesh::UnstructuredMesh(m.into())
     }
 }
 
@@ -1256,6 +1507,12 @@ impl From<mesh::PolyMesh<f64>> for Mesh {
 impl From<mesh::PointCloud<f64>> for Mesh {
     fn from(m: mesh::PointCloud<f64>) -> Self {
         Mesh::PointCloud(m.into())
+    }
+}
+
+impl From<UnstructuredMesh> for Mesh {
+    fn from(m: UnstructuredMesh) -> Self {
+        Mesh::UnstructuredMesh(m)
     }
 }
 
@@ -1298,8 +1555,12 @@ impl Mesh {
             Mesh::TetMesh(m) => add_tetmesh(detail, m),
             Mesh::PolyMesh(m) => add_polymesh(detail, m),
             Mesh::PointCloud(m) => add_pointcloud(detail, m),
+            Mesh::UnstructuredMesh(m) => add_unstructured_mesh(detail, m),
             Mesh::None => {}
         }
+    }
+    pub fn is_unstructured_mesh(&self) -> bool {
+        matches!(self, Mesh::UnstructuredMesh(_))
     }
     pub fn is_tetmesh(&self) -> bool {
         matches!(self, Mesh::TetMesh(_))
@@ -1315,11 +1576,18 @@ impl Mesh {
             Mesh::TetMesh(_) => MeshTag::TetMesh,
             Mesh::PolyMesh(_) => MeshTag::PolyMesh,
             Mesh::PointCloud(_) => MeshTag::PointCloud,
+            Mesh::UnstructuredMesh(_) => MeshTag::UnstructuredMesh,
             Mesh::None => MeshTag::None,
         }
     }
 }
 
+pub fn into_unstructured_mesh(mesh: Box<Mesh>) -> Box<UnstructuredMesh> {
+    match *mesh {
+        Mesh::UnstructuredMesh(m) => Box::new(m),
+        _ => panic!("Mesh mismatch"),
+    }
+}
 pub fn into_tetmesh(mesh: Box<Mesh>) -> Box<TetMesh> {
     match *mesh {
         Mesh::TetMesh(m) => Box::new(m),

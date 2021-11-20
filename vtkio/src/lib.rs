@@ -1,8 +1,8 @@
 use std::pin::Pin;
 
-use gut::io::vtk::*;
-use gut::io::MeshExtractor;
-use gut::mesh::topology::*;
+use meshx::io::vtk::*;
+use meshx::io::MeshExtractor;
+use meshx::mesh::topology::*;
 use model::Vtk;
 
 #[cxx::bridge(namespace = "vtkio")]

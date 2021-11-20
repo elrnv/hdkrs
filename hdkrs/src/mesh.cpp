@@ -45,6 +45,12 @@ inline std::ostream& operator<<(std::ostream& out, AttribLocation where) {
         m->FN( where, rust::Str(name), tuple_size, rust::Slice(data.data(), data.size()) ); \
     }
 
+HR_ADD_NUM_ATTRIB_IMPL(UnstructuredMesh, int8, add_attrib_i8)
+HR_ADD_NUM_ATTRIB_IMPL(UnstructuredMesh, int32, add_attrib_i32)
+HR_ADD_NUM_ATTRIB_IMPL(UnstructuredMesh, int64_t, add_attrib_i64)
+HR_ADD_NUM_ATTRIB_IMPL(UnstructuredMesh, fpreal32, add_attrib_f32)
+HR_ADD_NUM_ATTRIB_IMPL(UnstructuredMesh, fpreal64, add_attrib_f64)
+
 HR_ADD_NUM_ATTRIB_IMPL(PointCloud, int8, add_attrib_i8)
 HR_ADD_NUM_ATTRIB_IMPL(PointCloud, int32, add_attrib_i32)
 HR_ADD_NUM_ATTRIB_IMPL(PointCloud, int64_t, add_attrib_i64)
@@ -64,6 +70,20 @@ HR_ADD_NUM_ATTRIB_IMPL(TetMesh, fpreal32, add_attrib_f32)
 HR_ADD_NUM_ATTRIB_IMPL(TetMesh, fpreal64, add_attrib_f64)
 
 #undef ADD_NUM_ATTRIB_IMPL
+
+void add_attrib(
+        UnstructuredMesh *mesh,
+        AttribLocation where,
+        const char *name,
+        std::size_t tuple_size,
+        const std::vector<rust::Str> &strings,
+        const std::vector<int64_t> &indices)
+{
+    mesh->add_attrib_str(
+            where, rust::Str(name), tuple_size,
+            rust::Slice(strings.data(), strings.size()),
+            rust::Slice(indices.data(), indices.size()));
+}
 
 void add_attrib(
         PointCloud *ptcloud,
@@ -107,14 +127,17 @@ void add_attrib(
             rust::Slice(indices.data(), indices.size()));
 }
 
-template<typename T>
-GA_PrimitiveTypeId mesh_prim_type_id();
+template<typename M>
+bool is_valid_prim_type(GA_PrimitiveTypeId id, GA_Size num_verts);
 
 template<>
-GA_PrimitiveTypeId mesh_prim_type_id<PolyMesh>() { return GA_PRIMPOLY; }
+bool is_valid_prim_type<PolyMesh>(GA_PrimitiveTypeId id, GA_Size num_verts) { return id == GA_PRIMPOLY; }
 
 template<>
-GA_PrimitiveTypeId mesh_prim_type_id<TetMesh>() { return GA_PRIMTETRAHEDRON; }
+bool is_valid_prim_type<TetMesh>(GA_PrimitiveTypeId id, GA_Size num_verts) { return id == GA_PRIMTETRAHEDRON; }
+
+template<>
+bool is_valid_prim_type<UnstructuredMesh>(GA_PrimitiveTypeId id, GA_Size num_verts) { return id == GA_PRIMTETRAHEDRON || (id == GA_PRIMPOLY && num_verts == 3); }
 
 template<typename T>
 AttribLocation mesh_prim_attrib_location();
@@ -125,6 +148,9 @@ AttribLocation mesh_prim_attrib_location<PolyMesh>() { return AttribLocation::FA
 template<>
 AttribLocation mesh_prim_attrib_location<TetMesh>() { return AttribLocation::CELL; }
 
+template<>
+AttribLocation mesh_prim_attrib_location<UnstructuredMesh>() { return AttribLocation::CELL; }
+
 template<typename T>
 AttribLocation mesh_vertex_attrib_location();
 
@@ -134,25 +160,25 @@ AttribLocation mesh_vertex_attrib_location<PolyMesh>() { return AttribLocation::
 template<>
 AttribLocation mesh_vertex_attrib_location<TetMesh>() { return AttribLocation::CELLVERTEX; }
 
+template<>
+AttribLocation mesh_vertex_attrib_location<UnstructuredMesh>() { return AttribLocation::CELLVERTEX; }
+
 // Mark all points and vectors in the given detail that intersect the primitives of interest.
+template<typename M>
 std::tuple<std::vector<bool>, std::size_t>
-mark_points_and_count_vertices(
-        const GU_Detail& detail,
-        GA_PrimitiveTypeId prim_type_id)
+mark_points_and_count_vertices(const GU_Detail& detail)
 {
     std::vector<bool> points(detail.getNumPointOffsets(), false);
     std::size_t num_vertices = 0;
     for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
         const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
-        if (prim->getTypeId() == prim_type_id)
-        {
-            GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
-            num_vertices += num_prim_verts;
-            for ( GA_Size idx = 0; idx < num_prim_verts; ++idx ) {
-                auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
-                points[detail.vertexPoint(vtx_off)] = true;
-            }
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<M>(prim->getTypeId(), num_prim_verts)) continue;
+        num_vertices += num_prim_verts;
+        for ( GA_Size idx = 0; idx < num_prim_verts; ++idx ) {
+            auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
+            points[detail.vertexPoint(vtx_off)] = true;
         }
     }
 
@@ -174,7 +200,8 @@ fill_prim_attrib(
     for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
         const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
-        if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<M>(prim->getTypeId(), num_prim_verts)) continue;
         for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
             S val;
             aif->get(attrib, prim_off, val, k);
@@ -227,8 +254,8 @@ void fill_vertex_attrib(
     int i = 0;
     for ( GA_Offset prim_off : detail.getPrimitiveRange() ) {
         const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
-        if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
         GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<M>(prim->getTypeId(), num_prim_verts)) continue;
         for (GA_Size idx = 0; idx < num_prim_verts; ++idx) {
             auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
             for (int k = 0, k_end = tuple_size; k < k_end; ++k) {
@@ -267,14 +294,13 @@ void fill_prim_str_attrib(
     for ( GA_Offset prim_off : detail.getPrimitiveRange() )
     {
         const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
-        if (prim->getTypeId() == mesh_prim_type_id<M>())
-        {
-            for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
-                GA_StringIndexType handle = aif->getHandle(attrib, prim_off, k);
-                indices[tuple_size*i + k] = handle > -1 ? ids[handle] : -1;
-            }
-            i += 1;
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<M>(prim->getTypeId(), num_prim_verts)) continue;
+        for ( int k = 0, k_end = tuple_size; k < k_end; ++k ) {
+            GA_StringIndexType handle = aif->getHandle(attrib, prim_off, k);
+            indices[tuple_size*i + k] = handle > -1 ? ids[handle] : -1;
         }
+        i += 1;
     }
 
     auto name = attrib->getName().c_str();
@@ -338,8 +364,8 @@ void fill_vertex_str_attrib(
     int i = 0;
     for ( GA_Offset prim_off : detail.getPrimitiveRange() ) {
         const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
-        if (prim->getTypeId() != mesh_prim_type_id<M>()) continue;
         GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<M>(prim->getTypeId(), num_prim_verts)) continue;
         for (GA_Size idx = 0; idx < num_prim_verts; ++idx) {
             auto vtx_off = detail.getPrimitiveVertexOffset(prim_off, idx);
             for (int k = 0, k_end = tuple_size; k < k_end; ++k) {
@@ -497,7 +523,7 @@ void transfer_attributes(const GU_Detail& detail, M* mesh, std::size_t num_prims
 
     std::size_t num_vertices = 0;
     std::vector<bool> pt_grp;
-    std::tie(pt_grp, num_vertices) = mark_points_and_count_vertices(detail, mesh_prim_type_id<M>());
+    std::tie(pt_grp, num_vertices) = mark_points_and_count_vertices<M>(detail);
 
     transfer_point_attributes(detail, mesh, pt_grp);
     transfer_vertex_attributes(detail, mesh, num_vertices);
@@ -612,7 +638,62 @@ void update_attributes(GU_Detail& detail, rust::box<AttribIter> it, GA_Attribute
 }
 
 /**
- * Add a tetmesh to the current detail
+ * Add an unstructured mesh to the current detail.
+ */
+void hdkrs::add_unstructured_mesh(GU_Detail& detail, const hdkrs::UnstructuredMesh& mesh) {
+    GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
+    GA_Offset startprimoff = GA_Offset(0);
+    auto point_coords = mesh.get_point_coords();
+    auto num_points = point_coords.size()/3;
+    auto indices = mesh.get_indices();
+    auto counts = mesh.get_counts();
+    auto sizes = mesh.get_sizes();
+    auto cell_types = mesh.get_cell_types();
+
+    if (indices.size() > 0) {
+        GA_Offset startptoff = detail.appendPointBlock(num_points);
+        for (exint pt_idx = 0; pt_idx < num_points; ++pt_idx) {
+            GA_Offset ptoff = startptoff + pt_idx;
+            detail.setPos3(ptoff, UT_Vector3(&point_coords[3*pt_idx]));
+        }
+
+        std::vector<int> pt_numbers;
+        std::size_t offset = 0;
+        for (std::size_t block_idx = 0; block_idx < cell_types.size(); ++block_idx) {
+            auto count = counts[block_idx];
+            auto size = sizes[block_idx];
+            auto num_indices_in_block = count * size;
+            pt_numbers.clear();
+            for (std::size_t j = 0; j < num_indices_in_block; ++j) {
+                pt_numbers.push_back(indices[offset + j]);
+            }
+            offset += num_indices_in_block;
+            GA_Offset spo;
+            if (cell_types[block_idx] == CellType::Tetrahedron) {
+                spo = GEO_PrimTetrahedron::buildBlock(
+                        &detail, startptoff, detail.getNumPointOffsets(),
+                        count, pt_numbers.data());
+            } else if (cell_types[block_idx] == CellType::Triangle) {
+                GEO_PolyCounts polycounts;
+                polycounts.append(size, count);
+                spo = GEO_PrimPoly::buildBlock(
+                        &detail, startptoff, detail.getNumPointOffsets(),
+                        polycounts, pt_numbers.data());
+            }
+            if (block_idx == 0) {
+                startprimoff = spo;
+            }
+        }
+
+        retrieve_attributes(detail, startprimoff, mesh.attrib_iter(AttribLocation::CELL), GA_ATTRIB_PRIMITIVE);
+        retrieve_attributes(detail, startvtxoff, mesh.attrib_iter(AttribLocation::CELLVERTEX), GA_ATTRIB_VERTEX);
+        retrieve_attributes(detail, startptoff, mesh.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+    }
+}
+
+
+/**
+ * Add a tetmesh to the current detail.
  */
 void hdkrs::add_tetmesh(GU_Detail& detail, const hdkrs::TetMesh& tetmesh) {
     try {
@@ -643,7 +724,7 @@ void hdkrs::add_tetmesh(GU_Detail& detail, const hdkrs::TetMesh& tetmesh) {
 }
 
 /**
- * Add a polymesh to the current detail
+ * Add a polymesh to the current detail.
  */
 void hdkrs::add_polymesh(GU_Detail& detail, const hdkrs::PolyMesh& polymesh) {
     GA_Offset startvtxoff = GA_Offset(detail.getNumVertexOffsets());
@@ -686,7 +767,7 @@ void hdkrs::add_polymesh(GU_Detail& detail, const hdkrs::PolyMesh& polymesh) {
 }
 
 /**
- * Add a ptcloud to the current detail
+ * Add a ptcloud to the current detail.
  */
 void hdkrs::add_pointcloud(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) {
     auto point_coords = ptcloud.get_point_coords();
@@ -703,7 +784,7 @@ void hdkrs::add_pointcloud(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) 
 }
 
 /**
- * Update points in the detail according to what's in the ptcloud
+ * Update points in the detail according to what's in the ptcloud.
  */
 void hdkrs::update_points(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) {
     auto point_coords = ptcloud.get_point_coords();
@@ -715,6 +796,70 @@ void hdkrs::update_points(GU_Detail& detail, const hdkrs::PointCloud& ptcloud) {
     }	
 
     update_attributes(detail, ptcloud.attrib_iter(AttribLocation::VERTEX), GA_ATTRIB_POINT);
+}
+
+rust::box<hdkrs::UnstructuredMesh> hdkrs::build_unstructured_mesh(const GU_Detail& detail) {
+    std::vector<double> vertices;
+    vertices.reserve(3*detail.getNumPointOffsets());
+    std::vector<std::size_t> indices;
+    indices.reserve(3*detail.getNumVertexOffsets());
+    std::vector<CellType> cell_types;
+    cell_types.reserve(detail.getNumPrimitives());
+
+    for ( GA_Offset pt_off : detail.getPointRange() )
+    {
+        UT_Vector3 pos = detail.getPos3(pt_off);
+        vertices.push_back( static_cast<double>(pos[0]) );
+        vertices.push_back( static_cast<double>(pos[1]) );
+        vertices.push_back( static_cast<double>(pos[2]) );
+    }
+
+    std::size_t num_cells = 0;
+    for ( GA_Offset prim_off : detail.getPrimitiveRange() )
+    {
+        const GEO_Primitive *prim = detail.getGEOPrimitive(prim_off);
+        GA_Size num_prim_verts = detail.getPrimitiveVertexCount(prim_off);
+        if (!is_valid_prim_type<UnstructuredMesh>(prim->getTypeId(), num_prim_verts)) continue;
+        if (prim->getTypeId() == GA_PRIMPOLY) {
+            // General polygons are not supported, so we break these down into a
+            // triangle fan, which is the simplest.
+            const GEO_PrimPoly *poly = static_cast<const GEO_PrimPoly*>(prim);
+            std::size_t num_verts = poly->getVertexCount();
+            // Skip non-triangles.
+            if (num_verts != 3) {
+                continue;
+            }
+            cell_types.push_back(CellType::Triangle);
+            indices.push_back(3); // Number of vertices
+            indices.push_back(detail.pointIndex(detail.vertexPoint(poly->getVertexOffset(0))));
+            indices.push_back(detail.pointIndex(detail.vertexPoint(poly->getVertexOffset(1))));
+            indices.push_back(detail.pointIndex(detail.vertexPoint(poly->getVertexOffset(2))));
+            num_cells += 1;
+        } else if (prim->getTypeId() == GA_PRIMTETRAHEDRON) {
+            const GEO_PrimTetrahedron *tet = static_cast<const GEO_PrimTetrahedron*>(prim);
+            cell_types.push_back(CellType::Tetrahedron);
+            indices.push_back(4); // Number of vertices
+            indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(0))));
+            indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(1))));
+            indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(2))));
+            indices.push_back(detail.pointIndex(detail.vertexPoint(tet->fastVertexOffset(3))));
+            num_cells += 1;
+        }
+    }
+
+    // Only creating a mesh if there are cells.
+    if (num_cells == 0) {
+        throw std::runtime_error("No primitivies found");
+    }
+
+    rust::Slice vertices_slice(static_cast<const double *>(vertices.data()), vertices.size());
+    rust::Slice indices_slice(static_cast<const uint64_t *>(indices.data()), indices.size());
+    rust::Slice types_slice(static_cast<const CellType *>(cell_types.data()), cell_types.size());
+    rust::box<UnstructuredMesh> mesh = make_unstructured_mesh(vertices_slice, indices_slice, types_slice);
+
+    auto mesh_ptr = mesh.into_raw();
+    transfer_attributes(detail, mesh_ptr, num_cells);
+    return rust::box<UnstructuredMesh>::from_raw(mesh_ptr);
 }
 
 rust::box<hdkrs::TetMesh> hdkrs::build_tetmesh(const GU_Detail& detail) {

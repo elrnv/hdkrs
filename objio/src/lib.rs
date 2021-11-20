@@ -1,8 +1,8 @@
 use std::pin::Pin;
 
-use gut::io::obj::*;
-use gut::io::MeshExtractor;
-use gut::mesh::topology::*;
+use meshx::io::obj::*;
+use meshx::io::MeshExtractor;
+use meshx::mesh::topology::*;
 
 #[cxx::bridge(namespace = "objio")]
 mod ffi {
