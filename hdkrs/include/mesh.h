@@ -9,11 +9,11 @@ class GU_Detail;
 void impl_shared_ptr(std::shared_ptr<GU_Detail> detail);
 
 namespace hdkrs {
-    class Mesh;
-    class UnstructuredMesh;
-    class TetMesh;
-    class PolyMesh;
-    class PointCloud;
+    struct Mesh;
+    struct UnstructuredMesh;
+    struct TetMesh;
+    struct PolyMesh;
+    struct PointCloud;
 
     /**
     * Add the given meshes into the given detail

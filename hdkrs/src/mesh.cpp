@@ -853,7 +853,7 @@ rust::box<hdkrs::UnstructuredMesh> hdkrs::build_unstructured_mesh(const GU_Detai
     }
 
     rust::Slice vertices_slice(static_cast<const double *>(vertices.data()), vertices.size());
-    rust::Slice indices_slice(static_cast<const uint64_t *>(indices.data()), indices.size());
+    rust::Slice indices_slice(static_cast<const size_t *>(indices.data()), indices.size());
     rust::Slice types_slice(static_cast<const CellType *>(cell_types.data()), cell_types.size());
     rust::box<UnstructuredMesh> mesh = make_unstructured_mesh(vertices_slice, indices_slice, types_slice);
 
@@ -898,7 +898,7 @@ rust::box<hdkrs::TetMesh> hdkrs::build_tetmesh(const GU_Detail& detail) {
 
     rust::box<TetMesh> tetmesh = make_tetmesh(
             rust::Slice(static_cast<const double *>(tet_vertices.data()), tet_vertices.size()),
-            rust::Slice(static_cast<const uint64_t *>(tet_indices.data()), tet_indices.size()));
+            rust::Slice(static_cast<const size_t *>(tet_indices.data()), tet_indices.size()));
 
     TetMesh* tetmesh_ptr = tetmesh.into_raw();
     transfer_attributes(detail, tetmesh_ptr, num_tets);
@@ -942,7 +942,7 @@ rust::box<hdkrs::PolyMesh> hdkrs::build_polymesh(const GU_Detail& detail) {
     }
 
     rust::Slice vertices_slice(static_cast<const double *>(poly_vertices.data()), poly_vertices.size());
-    rust::Slice indices_slice(static_cast<const uint64_t *>(poly_indices.data()), poly_indices.size());
+    rust::Slice indices_slice(static_cast<const size_t *>(poly_indices.data()), poly_indices.size());
     rust::box<PolyMesh> polymesh = make_polymesh(vertices_slice, indices_slice);
 
     auto polymesh_ptr = polymesh.into_raw();
