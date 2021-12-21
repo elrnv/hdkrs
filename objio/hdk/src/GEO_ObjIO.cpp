@@ -72,14 +72,14 @@ GEO_ObjIO::fileSave(const GEO_Detail *detail, std::ostream &os)
         auto buf = objio::polymesh_to_obj_buffer(static_cast<const GU_Detail&>(*detail));
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    } catch(const std::runtime_error& e) {}
+    } catch(...) {}
 
     // If no polygons are found we try to save the pointcloud
     try {
         auto buf = objio::pointcloud_to_obj_buffer(static_cast<const GU_Detail&>(*detail));
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    } catch(const std::runtime_error& e) {}
+    } catch(...) {}
 
     return GA_Detail::IOStatus(false);
 }

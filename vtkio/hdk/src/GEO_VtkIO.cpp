@@ -67,21 +67,21 @@ GEO_VtkIO::fileSave(const GEO_Detail *detail, std::ostream &os)
         auto buf = vtkio::tetmesh_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    } catch(const std::runtime_error& e) {}
+    } catch(...) {}
 
     // If no tets are found we try to save the polymesh
     try {
         auto buf = vtkio::polymesh_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    } catch(const std::runtime_error& e) { }
+    } catch(...) { }
 
     // If no polygons are found we try to save the pointcloud
     try {
         auto buf = vtkio::pointcloud_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
-    } catch(const std::runtime_error& e) { }
+    } catch(...) { }
 
     return GA_Detail::IOStatus(false);
 }
