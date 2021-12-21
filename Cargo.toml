@@ -4,3 +4,6 @@ members = [
     "objio",
     "vtkio",
 ]
+
+[patch.crates-io]
+vtkio = { git = "https://github.com/elrnv/vtkio.git", branch = "no-lzma" }
