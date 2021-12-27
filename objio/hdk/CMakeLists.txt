@@ -18,13 +18,15 @@ list( APPEND CMAKE_PREFIX_PATH "$ENV{HFS}/toolkit/cmake" )
 # Registers an imported library target named 'Houdini'.
 find_package( Houdini REQUIRED )
 
+# Find the hdkrs include directories
+file(READ "${CMAKE_BINARY_DIR}/rust/out_dir_hdkrs.txt" hdkrs_OUT_DIR)
+set(CARGO_TARGET_DIR "${hdkrs_OUT_DIR}/../../..")
+
 # Find the rust build of the objio library.
 list(APPEND CMAKE_PREFIX_PATH ".")
 
 find_package( objiors REQUIRED )
 
-# Find the hdkrs include directories
-file(READ "${CMAKE_BINARY_DIR}/rust/out_dir_hdkrs.txt" hdkrs_OUT_DIR)
 list(APPEND CMAKE_PREFIX_PATH "${hdkrs_OUT_DIR}/cmake")
 
 find_package( hdkrs REQUIRED )

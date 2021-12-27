@@ -1,10 +1,6 @@
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set( vtkio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/debug" )
-else()
-    set( vtkio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/release" )
-endif()
+set( vtkio_LIB_DIR "${CARGO_TARGET_DIR}" )
 
-find_path( vtkiors_INCLUDE_DIR vtkio/src/lib.rs.h PATHS "${CMAKE_SOURCE_DIR}/../../target/cxxbridge" DOC "vtkiors include directory")
+find_path( vtkiors_INCLUDE_DIR vtkio/src/lib.rs.h PATHS "${CARGO_TARGET_DIR}/../cxxbridge" DOC "vtkiors include directory")
 find_library( vtkiors_LIBRARY vtkiors PATHS ${vtkio_LIB_DIR} DOC "vtkiors library directory")
 
 include(FindPackageHandleStandardArgs)

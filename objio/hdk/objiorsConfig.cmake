@@ -1,10 +1,6 @@
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set( objio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/debug" )
-else()
-    set( objio_LIB_DIR "${CMAKE_SOURCE_DIR}/../../target/release" )
-endif()
+set( objio_LIB_DIR "${CARGO_TARGET_DIR}" )
 
-find_path( objiors_INCLUDE_DIR objio/src/lib.rs.h PATHS "${CMAKE_SOURCE_DIR}/../../target/cxxbridge" DOC "objiors include directory")
+find_path( objiors_INCLUDE_DIR objio/src/lib.rs.h PATHS "${CARGO_TARGET_DIR}/../cxxbridge" DOC "objiors include directory")
 find_library( objiors_LIBRARY objiors PATHS ${objio_LIB_DIR} DOC "objiors library directory")
 
 include(FindPackageHandleStandardArgs)
