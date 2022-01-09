@@ -1,0 +1,19 @@
+[package]
+name = "mshio-hdk"
+version = "0.1.1"
+authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+edition = "2018"
+links = "cxxbridge-mshiohdk"
+
+[lib]
+name = "mshiors"
+crate-type = ["staticlib"]
+
+[dependencies]
+meshx = { version = "0.2", features = ["io", "serde_all"] }
+hdkrs = { path = "../hdkrs" }
+cxx = "1.0"
+
+[build-dependencies]
+cxx-build = "1.0"
+cmake = { git = "https://github.com/elrnv/cmake-rs.git", version = "0.1" }
