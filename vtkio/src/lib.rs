@@ -132,11 +132,12 @@ pub fn tetmesh_to_vtk_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, 
     })
 }
 
-/// Helper to convert the given VTK data set into a valid `Mesh` type representing a TetMesh.
+/// Helper to convert the given VTK data set into a valid `Mesh` type representing an unstructured
+/// mesh.
 ///
 /// In case of failure `None` is returned.
-fn convert_vtk_to_tetmesh(vtk: &Vtk) -> hdkrs::Mesh {
-    if let Ok(mesh) = vtk.extract_tetmesh() {
+fn convert_vtk_to_mesh(vtk: &Vtk) -> hdkrs::Mesh {
+    if let Ok(mesh) = vtk.extract_mesh() {
         if mesh.num_cells() > 0 {
             return mesh.into();
         }
@@ -199,7 +200,7 @@ pub fn parse_vtp_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
 pub fn parse_vtu_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     if let Ok(vtk) = Vtk::parse_xml(data) {
         return Box::new(
-            convert_vtk_to_tetmesh(&vtk)
+            convert_vtk_to_mesh(&vtk)
                 .or_else(|| convert_vtk_to_polymesh(&vtk))
                 .or_else(|| convert_vtk_to_pointcloud(&vtk))
                 .or(hdkrs::Mesh::None),
@@ -213,7 +214,7 @@ pub fn parse_vtu_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
 pub fn parse_vtk_mesh(data: &[u8]) -> Box<hdkrs::Mesh> {
     if let Ok(vtk) = Vtk::parse_legacy_be(data) {
         return Box::new(
-            convert_vtk_to_tetmesh(&vtk)
+            convert_vtk_to_mesh(&vtk)
                 .or_else(|| convert_vtk_to_polymesh(&vtk))
                 .or_else(|| convert_vtk_to_pointcloud(&vtk))
                 .or(hdkrs::Mesh::None),
