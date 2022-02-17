@@ -8,4 +8,3 @@ members = [
 
 [patch.crates-io]
 vtkio = { git = "https://github.com/elrnv/vtkio.git", branch = "no-lzma" }
-meshx = { path = "../meshx" }
