@@ -24,6 +24,9 @@ mod ffi {
         fn pointcloud_to_vtp_buffer(detail: &GU_Detail) -> Result<Vec<u8>>;
         fn pointcloud_to_vtk_buffer(detail: &GU_Detail) -> Result<Vec<u8>>;
 
+        fn mesh_to_vtu_buffer(detail: &GU_Detail) -> Result<Vec<u8>>;
+        fn mesh_to_vtk_buffer(detail: &GU_Detail) -> Result<Vec<u8>>;
+
         fn add_vtp_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]);
         fn add_vtu_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]);
         fn add_vtk_mesh(detail: Pin<&mut GU_Detail>, data: &[u8]);
@@ -56,8 +59,8 @@ fn write_xml_vtk(vtk: Vtk) -> Vec<u8> {
     vec_data
 }
 
-/// Extract a PolyMesh from the given detail and write it as a polygon mesh in XML VTK format returned through an appropriately sized
-/// `ByteBuffer`.
+/// Extract a PolyMesh from the given detail and write it as a polygon mesh in XML VTK format
+/// returned through an appropriately sized `ByteBuffer`.
 pub fn polymesh_to_vtp_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
     hdkrs::ffi::build_polymesh(detail).map(|mesh| {
         convert_polymesh_to_vtk_format(&mesh.0, VTKPolyExportStyle::PolyData)
@@ -65,8 +68,8 @@ pub fn polymesh_to_vtp_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>,
             .unwrap_or_else(|_| Default::default())
     })
 }
-/// Extract a PolyMesh from the given detail and write it as an unstructured grid in XML VTK format returned through an appropriately sized
-/// `ByteBuffer`.
+/// Extract a PolyMesh from the given detail and write it as an unstructured grid in XML VTK format
+/// returned through an appropriately sized `ByteBuffer`.
 pub fn polymesh_to_vtu_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
     hdkrs::ffi::build_polymesh(detail).map(|mesh| {
         convert_polymesh_to_vtk_format(&mesh.0, VTKPolyExportStyle::UnstructuredGrid)
@@ -74,8 +77,8 @@ pub fn polymesh_to_vtu_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>,
             .unwrap_or_else(|_| Default::default())
     })
 }
-/// Extract a PolyMesh from the given detail and write it into a binary VTK format returned through an appropriately sized
-/// `ByteBuffer`.
+/// Extract a PolyMesh from the given detail and write it into a binary VTK format returned through
+/// an appropriately sized `ByteBuffer`.
 pub fn polymesh_to_vtk_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
     hdkrs::ffi::build_polymesh(detail).map(|mesh| {
         convert_polymesh_to_vtk_format(&mesh.0, VTKPolyExportStyle::PolyData)
@@ -127,6 +130,26 @@ pub fn tetmesh_to_vtu_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, 
 pub fn tetmesh_to_vtk_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
     hdkrs::ffi::build_tetmesh(detail).map(|mesh| {
         convert_tetmesh_to_vtk_format(&mesh.0)
+            .map(write_legacy_vtk)
+            .unwrap_or_else(|_| Default::default())
+    })
+}
+
+/// Extract an unstructured mesh from the given detail and write it as an unstructured grid
+/// in XML VTK format returned through an appropriately sized `ByteBuffer`.
+pub fn mesh_to_vtu_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
+    hdkrs::ffi::build_unstructured_mesh(detail).map(|mesh| {
+        convert_mesh_to_vtk_format(&mesh.0)
+            .map(write_xml_vtk)
+            .unwrap_or_else(|_| Default::default())
+    })
+}
+
+/// Extract an unstructured mesh from the given detail and write it into a binary VTK
+/// format returned through an appropriately sized `ByteBuffer`.
+pub fn mesh_to_vtk_buffer(detail: &hdkrs::ffi::GU_Detail) -> Result<Vec<u8>, cxx::Exception> {
+    hdkrs::ffi::build_unstructured_mesh(detail).map(|mesh| {
+        convert_mesh_to_vtk_format(&mesh.0)
             .map(write_legacy_vtk)
             .unwrap_or_else(|_| Default::default())
     })

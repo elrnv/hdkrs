@@ -62,19 +62,12 @@ GEO_VtkIO::fileSave(const GEO_Detail *detail, std::ostream &os)
 
     const GU_Detail &gud = *static_cast<const GU_Detail*>(detail);
 
-    // Try to save the tetmesh first
+    // Try to save unstructured mesh first
     try {
-        auto buf = vtkio::tetmesh_to_vtk_buffer(gud);
+        auto buf = vtkio::mesh_to_vtk_buffer(gud);
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
     } catch(...) {}
-
-    // If no tets are found we try to save the polymesh
-    try {
-        auto buf = vtkio::polymesh_to_vtk_buffer(gud);
-        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
-        return GA_Detail::IOStatus(true);
-    } catch(...) { }
 
     // If no polygons are found we try to save the pointcloud
     try {

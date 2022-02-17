@@ -64,16 +64,9 @@ GEO_VtuIO::fileSave(const GEO_Detail *detail, std::ostream &os)
     if (!detail) // nothing to do
         return GA_Detail::IOStatus(true);
 
-    // Try to save the tetmesh first
+    // Try to save an unstructured mesh first
     try {
-        auto buf = vtkio::tetmesh_to_vtu_buffer(static_cast<const GU_Detail&>(*detail));
-        os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
-        return GA_Detail::IOStatus(true);
-    } catch(...) {}
-
-    // If no tets are found we try to save the polymesh
-    try {
-        auto buf = vtkio::polymesh_to_vtu_buffer(static_cast<const GU_Detail&>(*detail));
+        auto buf = vtkio::mesh_to_vtu_buffer(static_cast<const GU_Detail&>(*detail));
         os.write(reinterpret_cast<const char *>(buf.data()), buf.size());
         return GA_Detail::IOStatus(true);
     } catch(...) {}
