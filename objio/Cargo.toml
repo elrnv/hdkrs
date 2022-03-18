@@ -10,7 +10,7 @@ name = "objiors"
 crate-type = ["staticlib"]
 
 [dependencies]
-meshx = { version = "0.2", features = ["io", "serde_all"] }
+meshx = { version = "0.3", features = ["io", "serde_all"] }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 
