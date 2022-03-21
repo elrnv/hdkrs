@@ -42,6 +42,21 @@ You will then need to [setup the Houdini development
 environment](https://www.sidefx.com/docs/hdk/_h_d_k__intro__getting_started.html). On Linux and macOS this means sourcing the `houdini_setup` script from the Houdini install directory. On Windows this means opening the "Command Line Tools" program provided with the Houdini install.
 
 
+### Note for Apple Silicon builds
+
+This section applies to the brand new Houdini 19.0.563 Apple silicon daily builds, and may become
+quickly obsolete.
+To build plugins for the new Apple silicon Houdini builds, we must first tweak Houdini's cmake script.
+After initializing the Houdini environment variables:
+  - Open $HFS/toolkit/cmake/HoudiniConfig.cmake in an editor with administrative priveleges.
+  - Remove `MBSD_INTEL` from `_houdini_defines` list on line 30, and change `AMD64` to `ARM64`.
+  - Add `set(CMAKE_OSX_ARCHITECTURES arm64)` to the script (e.g. before `_houdini_compile_options`
+    is defined).
+This tweak has already been reported on the [SideFX
+forums](https://www.sidefx.com/forum/topic/83559/?page=1#post-360626), so it may not be needed for
+long.
+
+
 ## Building and Installing an HDK plugin
 
 First make sure that all the steps in the section above are completed.
