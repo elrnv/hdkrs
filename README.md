@@ -13,6 +13,21 @@ We use the [`cxx`](https://cxx.rs/) crate to facilitate an intuitive interface f
 For more details see the [`hdkrs` `README.md`](hdkrs/README.md).
 
 
+# Note for Apple Silicon builds
+
+Note that this section applies to the brand new Houdini 19.0.563 apple silicon daily builds, and may become
+quickly obsolete.
+To build plugins for the new Apple silicon Houdini builds, we must first tweak the cmake script.
+After initializing the Houdini environment variables:
+  - Open $HFS/toolkit/cmake/HoudiniConfig.cmake in an editor with administrative priveleges.
+  - Remove `MBSD_INTEL` from `_houdini_defines` list on line 30, and change `AMD64` to `ARM64`.
+  - Add `set(CMAKE_OSX_ARCHITECTURES arm64)` to the script (e.g. before `_houdini_compile_options`
+    is defined).
+This tweak has already been reported on the [SideFX
+forums](https://www.sidefx.com/forum/topic/83559/?page=1#post-360626), so it may not be needed for
+long.
+
+
 # License
 
 This repository is licensed under either of
