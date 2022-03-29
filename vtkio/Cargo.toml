@@ -10,7 +10,7 @@ name = "vtkiors"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-meshx = { version = "0.3", features = ["io", "serde_all"] }
+meshx = { version = "0.4", features = ["io", "serde_all"] }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 

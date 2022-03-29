@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::iter::Peekable;
 use std::sync::Arc;
 
-use hashbrown::hash_map::Iter;
+use std::collections::hash_map::Iter;
 use meshx::{attrib, attrib::Attrib, mesh, mesh::topology as topo, mesh::VertexPositions};
 
 pub mod interop;
