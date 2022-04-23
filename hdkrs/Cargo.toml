@@ -14,7 +14,7 @@ repository = "https://github.com/elrnv/hdkrs"
 keywords = ["hdk", "plugin", "houdini", "sidefx"]
 
 [dependencies]
-meshx = { version = "0.4", features = ["io", "serde_all"] }
+meshx = { version = "0.5", features = ["io", "serde_all"] }
 bytemuck = "1"
 ahash = "0.7"
 cxx = "1.0"
