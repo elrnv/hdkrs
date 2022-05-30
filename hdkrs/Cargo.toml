@@ -24,4 +24,4 @@ libc = "0.2"
 cbindgen = "0.20"
 glob = "0.3"
 cxx-build = "1.0"
-cmake = { git = "https://github.com/elrnv/cmake-rs.git", version = "0.1" }
+cmake = "0.1"

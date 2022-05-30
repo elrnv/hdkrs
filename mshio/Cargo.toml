@@ -16,4 +16,4 @@ cxx = "1.0"
 
 [build-dependencies]
 cxx-build = "1.0"
-cmake = { git = "https://github.com/elrnv/cmake-rs.git", version = "0.1" }
+cmake = "0.1"
