@@ -8,3 +8,12 @@ members = [
 
 [patch.crates-io]
 vtkio = { git = "https://github.com/elrnv/vtkio.git", branch = "no-lzma" }
+
+# The following release options optimize the binary for speed and size.
+# However this makes compile times much slower.
+[profile.release]
+strip = true        # Strips symbols
+lto = true          # Enable fat lto
+codegen-units = 1   # Improve opt between units
+panic = "abort"     # No backtrace, symbols are stripped anyways.
+#opt-level = "z"    # z is for size, for now we prioritize speed.
