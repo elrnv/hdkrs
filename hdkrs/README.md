@@ -69,6 +69,36 @@ which should build the Rust crate, the CMake plugin, link them and install it fo
 For a debug build, run the same command without the `--release` flag.
 Note that `cargo-hdk` will place additional files in `hdk/build_*/rust/` to help CMake locate the cargo build.
 
+### Windows
+
+Building on Windows requires a few extra steps. Below is a list of steps listed more concretely:
+
+1. Install Houdini 19.0 or later.
+
+2. Launch Houdini to install an appropriate license. If this step is skipped the command-line steps below may faily or hang indefinitely.
+
+3. Install Visual Studio 2019. Later versions may not work due to compiler incompatibility with Houdini 19.
+
+4. Install CMake. This needs to be at a newer version (3.24 or higher works) than provided by Visual Studio 2019.
+
+6. Install `cargo-hdk` as above by running
+```
+cargo install cargo-hdk
+```
+from command line.
+
+7. Start Houdini's Command Line Tools from the start menu, or run
+```
+> C:\"Program Files\Side Effects Software\Houdini 19.5.303"\bin\hcmd.exe
+```
+from command line. (replace 19.5.303 with the correct version).
+
+9. Navigate to the `softy-hdk` subfolder (the one containing this README file) and run
+```
+cargo hdk --release
+```
+to build and install the HDK Houdini plugin.
+
 
 # Build Structure
 
@@ -144,7 +174,7 @@ Changes to `cmake` are upstreamed in https://github.com/alexcrichton/cmake-rs/pu
    println!("cargo:rustc-link-search=native={}/build", out_dir);
    ```
    > ### Note
-   > In our plugins, in `CMakeLists.txt` we used 
+   > In our plugins, in `CMakeLists.txt` we used
    > ```cmake
    > houdini_configure_target( ${library_name} INSTDIR ${CMAKE_INSTALL_PREFIX} LIB_PREFIX lib)
    > ```
