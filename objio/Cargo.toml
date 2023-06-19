@@ -10,7 +10,7 @@ name = "objiors"
 crate-type = ["staticlib"]
 
 [dependencies]
-meshx = { workspace = "true" }
+meshx = { workspace = true }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 

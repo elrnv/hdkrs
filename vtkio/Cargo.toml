@@ -10,7 +10,7 @@ name = "vtkiors"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-meshx = { workspace = "true" }
+meshx = { workspace = true }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 
