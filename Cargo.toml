@@ -17,3 +17,7 @@ lto = true          # Enable fat lto
 codegen-units = 1   # Improve opt between units
 panic = "abort"     # No backtrace, symbols are stripped anyways.
 #opt-level = "z"    # z is for size, for now we prioritize speed.
+
+
+[workspace.dependencies]
+meshx = { version = "0.6", features = ["io", "serde_all"] }

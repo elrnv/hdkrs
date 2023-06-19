@@ -10,7 +10,7 @@ name = "mshiors"
 crate-type = ["staticlib"]
 
 [dependencies]
-meshx = { version = "0.5", features = ["io", "serde_all"] }
+meshx = { workspace = "true" }
 hdkrs = { path = "../hdkrs" }
 cxx = "1.0"
 
