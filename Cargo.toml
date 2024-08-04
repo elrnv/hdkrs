@@ -6,9 +6,6 @@ members = [
     "mshio",
 ]
 
-[patch.crates-io]
-vtkio = { git = "https://github.com/elrnv/vtkio.git", branch = "no-lzma" }
-
 # The following release options optimize the binary for speed and size.
 # However this makes compile times much slower.
 [profile.release]
@@ -20,4 +17,4 @@ panic = "abort"     # No backtrace, symbols are stripped anyways.
 
 
 [workspace.dependencies]
-meshx = { version = "0.6", features = ["io", "serde_all"] }
+meshx = { git = "https://github.com/elrnv/meshx.git", branch = "vtkio-0.7", version = "0.6", features = ["io", "serde_all"] }
